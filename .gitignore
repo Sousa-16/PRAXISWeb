@@ -1,0 +1,21 @@
+# API
+api/.deps/
+api/.venv/
+api/.env
+api/praxis_web.db
+api/swapout.db
+api/__pycache__/
+api/**/__pycache__/
+api/.pytest_cache/
+api/data/bases_cache/*.npz
+api/data/bases_cache/.write_probe
+
+# Web
+web/node_modules/
+web/.next/
+web/.env*.local
+web/tsconfig.tsbuildinfo
+
+# OS / editor
+.DS_Store
+Thumbs.db

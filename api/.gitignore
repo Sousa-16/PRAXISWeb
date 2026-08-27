@@ -1,0 +1,8 @@
+praxis_web.db
+swapout.db
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/bases_cache/*.npz
+data/bases_cache/.write_probe

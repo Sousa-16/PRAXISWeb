@@ -1,0 +1,209 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+from fastapi.testclient import TestClient
+from sqlmodel import Session
+
+from app.constraints import remaining_trees
+from app.db import engine
+from app.main import app
+from app.models import Job
+from app.owners import abandon_orphaned_jobs
+from app.policy import freeze_policy, score_policy
+
+
+def test_health(client):
+    res = client.get("/health")
+    assert res.status_code == 200
+    assert res.json()["ok"] is True
+
+
+def test_sample_dataset_and_isolation(client):
+    created = client.post("/v1/datasets/sample")
+    assert created.status_code == 201
+    did = created.json()["id"]
+    assert created.json()["guessed_label"] == "class"
+    with TestClient(app) as other:
+        hidden = other.get(f"/v1/jobs/{did}")
+        assert hidden.status_code == 404
+    mine = client.get("/v1/me")
+    assert mine.status_code == 200
+    assert "Other visitors" in mine.json()["notice"]
+
+
+def test_unknown_job_is_404(client):
+    client.get("/v1/me")
+    res = client.get("/v1/jobs/nope")
+    assert res.status_code == 404
+    assert "error" in res.json()
+
+
+def test_delete_now(client):
+    created = client.post("/v1/datasets/sample")
+    did = created.json()["id"]
+    client.delete("/v1/me/data")
+    res = client.get(f"/v1/jobs/{did}")
+    assert res.status_code == 404
+
+
+STUMP = {
+    "id": 0,
+    "bases": ["income"],
+    "paths": [
+        [{"name": "income <= 50000.0", "true": True}],
+        [{"name": "income <= 50000.0", "true": False}],
+    ],
+    "leaf_labels": ["no", "yes"],
+    "rules": ["IF income <= 50000.0 THEN no"],
+}
+OTHER = {
+    "id": 1,
+    "bases": ["income", "region"],
+    "paths": [
+        [{"name": "income <= 50000.0", "true": True}],
+        [{"name": "income <= 50000.0", "true": False}],
+    ],
+    "leaf_labels": ["yes", "no"],
+    "rules": [],
+}
+JOB = {
+    "label": "approved",
+    "class_names": ["no", "yes"],
+    "original_columns": ["income", "region"],
+    "column_kinds": {"income": "numeric", "region": "categorical"},
+    "column_codes": {"region": {"south": 0, "west": 1}},
+    "binarizer": {
+        "type": "thresholds",
+        "thresholds": [{"column": "income", "threshold": 50000.0, "name": "income <= 50000.0"}],
+    },
+    "trees": [STUMP, OTHER],
+}
+
+
+def test_remaining_and_score():
+    assert remaining_trees(JOB["trees"], banned=["income"]) == []
+    policy = freeze_policy(JOB, 0, banned=["region"])
+    out = score_policy(policy, {"income": "42000", "region": "south"})
+    assert out["prediction"] == "no"
+
+
+def test_remaining_keep():
+    assert [t["id"] for t in remaining_trees(JOB["trees"], keep=["region"])] == [1]
+
+
+def test_search_empty_and_miss(client):
+    client.get("/v1/me")
+    empty = client.get("/v1/search")
+    assert empty.status_code == 200
+    assert empty.json() == {"jobs": [], "policies": []}
+    miss = client.get("/v1/search", params={"q": "zzzz"})
+    assert miss.json() == {"jobs": [], "policies": []}
+
+
+def test_score_policy_unit_only():
+    policy = freeze_policy(JOB, 0, banned=["region"])
+    out = score_policy(policy, {"income": "42000"})
+    assert out["prediction"] == "no"
+    assert out["n"] == 1
+
+
+def test_timbertrek_export_shape():
+    from app.timbertrek_export import build_timbertrek_doc
+
+    result = {
+        **JOB,
+        "n_trees": 12345,
+        "n_profiled": 2,
+        "trees": [STUMP, OTHER],
+    }
+    doc = build_timbertrek_doc(result, banned=["region"], keep=[])
+    assert set(doc.keys()) == {"trie", "featureMap", "treeMap"}
+    assert doc["trie"]["f"] == "root"
+    assert list(doc["treeMap"]) == ["1", "2"]
+    first = doc["treeMap"]["1"]
+    assert len(first) == 3
+    assert first[0]["f"][0] not in (None,)
+    assert len(first[0].get("c") or []) == 2
+    for v in doc["featureMap"].values():
+        assert len(v) == 3
+    # One sunburst leaf per tree per unique feature-prefix (no duplicate t at same node).
+    leaves = []
+
+    def walk(n, path):
+        if n.get("f") == "_":
+            leaves.append((path, n.get("t")))
+            return
+        for c in n.get("c") or []:
+            walk(c, path + (n.get("f"),))
+
+    walk(doc["trie"], ())
+    assert len(leaves) == len(set(leaves))
+    assert {t for _, t in leaves} == {1, 2}
+    mins = []
+
+    def leafn(n):
+        f = n.get("f")
+        if isinstance(f, list) and f and f[0] in "+-":
+            mins.append(f[1])
+            return
+        for c in n.get("c") or []:
+            leafn(c)
+
+    for entry in doc["treeMap"].values():
+        leafn(entry[0])
+    assert mins and min(mins) >= 2
+    assert len(set(mins)) >= 2
+
+
+def test_count_matching_uses_bases_index():
+    from app.fit import FittedBundle, count_matching
+    import numpy as np
+
+    class FakeModel:
+        def get_tree_paths(self, i):
+            paths = {
+                0: [[1], [ -1]],
+                1: [[1, 2]],
+                2: [[2]],
+            }[i]
+            preds = [0] * len(paths)
+            return paths, preds
+
+    bundle = FittedBundle(
+        model=FakeModel(),
+        bin_names=["income <= 1", "region <= 0"],
+        class_names=["no", "yes"],
+        Xb_te=np.zeros((1, 2), dtype=np.uint8),
+        y_te=np.zeros(1, dtype=int),
+        n_trees=3,
+        min_objective=1,
+        shell={},
+    )
+    all_ok = count_matching(bundle, [], [])
+    assert all_ok["n_matching"] == 3
+    no_income = count_matching(bundle, ["income"], [])
+    assert no_income["n_matching"] == 1
+    must_region = count_matching(bundle, [], ["region"])
+    assert must_region["n_matching"] == 2
+
+
+def test_abandon_orphaned_jobs_from_prior_process():
+    with Session(engine) as session:
+        session.add(
+            Job(
+                id="stuck01",
+                dataset_id="gone",
+                label="approved",
+                status="running",
+                created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            )
+        )
+        session.commit()
+        n = abandon_orphaned_jobs(session)
+        assert n >= 1
+        stuck = session.get(Job, "stuck01")
+        assert stuck is not None
+        assert stuck.status == "failed"
+        session.delete(stuck)
+        session.commit()
