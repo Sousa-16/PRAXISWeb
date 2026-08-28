@@ -1,142 +1,160 @@
 # PRAXIS Web deployment
 
-Production topology: **Vercel** (Next.js) → **API host** (Fly/Railway/Docker) → **Supabase** (Postgres + optional Auth).
+Recommended stack: **Vercel** (frontend) + **Render** (API) + **Supabase** (optional auth).
 
 ```mermaid
 flowchart TB
   subgraph vercel [Vercel]
-    NextApp[Next.js]
+    NextApp["Next.js (web/)"]
   end
-  subgraph api_host [API host]
-    API[FastAPI]
-    Worker[RQ worker optional]
-    Vol[Persistent volume or S3]
+  subgraph render [Render]
+    API[FastAPI Docker]
+    PG[(Render Postgres optional)]
   end
-  subgraph supabase [Supabase]
+  subgraph supabase [Supabase optional]
     Auth[Auth]
-    PG[Postgres]
-    Storage[S3-compatible Storage optional]
+    SupaPG[Postgres alternative]
   end
   User --> NextApp
   NextApp -->|API_PROXY_TARGET| API
-  User -->|optional| Auth
+  User -->|optional sign-in| Auth
   API --> PG
-  Worker --> PG
-  API --> Vol
-  Worker --> Vol
+  API --> SupaPG
 ```
 
-## 1. Supabase Postgres
+---
 
-1. Create a Supabase project.
-2. Copy the **transaction pooler** connection string (port `6543`) for the API.
-3. On the API host, set:
+## Quick start: Render + Vercel
+
+### Step 1 — Push code to GitHub
+
+Repo: **Sousa-16/PRAXISWeb** (only the `WebApp` folder contents).
 
 ```bash
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+cd ~/PRAXIS/WebApp
+git push -u origin main
 ```
 
-Use the **direct** connection (port `5432`) only for one-off admin or `alembic upgrade head`.
+### Step 2 — Deploy API on Render
 
-Tables (`datasets`, `jobs`, `policies`) are created by Alembic on API startup.
+1. Go to [render.com](https://render.com) → sign in with GitHub.
+2. **New** → **Blueprint**.
+3. Connect **Sousa-16/PRAXISWeb**.
+4. Render reads [`render.yaml`](render.yaml) and creates:
+   - **praxis-api** (Docker web service)
+   - **praxis-db** (Postgres)
+5. When prompted, set:
+   - `FRONTEND_ORIGIN` → leave blank for now; set after Vercel deploy, e.g. `https://your-app.vercel.app`
+   - `SUPABASE_JWT_SECRET` → leave blank unless using Supabase Auth
+6. Click **Apply**. Wait for deploy (first build ~5–10 min).
+7. Copy the API URL, e.g. `https://praxis-api.onrender.com`.
+8. Test: open `https://praxis-api.onrender.com/health` → `"ok": true`.
 
-## 2. Supabase Auth (optional)
+**Manual deploy (no Blueprint):**
 
-| Where | Variable | Source |
-|-------|----------|--------|
-| Vercel | `NEXT_PUBLIC_SUPABASE_URL` | Project Settings → API |
-| Vercel | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project Settings → API |
-| API host | `SUPABASE_JWT_SECRET` | Project Settings → API → JWT Secret |
-| API host | `FRONTEND_ORIGIN` | Your Vercel URL, e.g. `https://praxis-web.vercel.app` |
-| API host | `COOKIE_SECURE=1` | Required in production |
+1. **New** → **Web Service** → connect repo.
+2. **Root Directory:** leave empty (repo root).
+3. **Language:** Docker.
+4. **Dockerfile Path:** `api/Dockerfile`.
+5. **Docker Context:** `api`.
+6. **Plan:** Starter (recommended; PRAXIS fits need RAM).
+7. Add env vars (see table below).
+8. **Health Check Path:** `/health`.
 
-Guest mode works with no Supabase vars. Sign-in attaches guest uploads to the account via `POST /v1/auth/attach`.
+| Render env var | Value |
+|----------------|--------|
+| `DATABASE_URL` | From Render Postgres **Internal** URL, or Supabase pooler URL |
+| `FRONTEND_ORIGIN` | Your Vercel URL (set after step 3) |
+| `COOKIE_SECURE` | `1` |
+| `SUPABASE_JWT_SECRET` | Optional — Supabase JWT secret |
 
-## 3. API host (Fly.io example)
+**Note:** Render free tier spins down when idle and has limited RAM. Use **Starter** for demos with real PRAXIS fits.
 
-From `WebApp/api`:
+### Step 3 — Deploy frontend on Vercel
 
-```bash
-fly launch --no-deploy
-fly volumes create bases_cache --size 1
-fly secrets set \
-  DATABASE_URL='postgresql://...' \
-  SUPABASE_JWT_SECRET='...' \
-  FRONTEND_ORIGIN='https://your-app.vercel.app' \
-  COOKIE_SECURE=1
-fly deploy
-```
-
-Optional Redis worker (recommended for production fits):
-
-```bash
-fly secrets set REDIS_URL='redis://...'
-# Scale a worker machine running: python worker.py
-```
-
-See [`fly.toml`](api/fly.toml) for volume mount at `/app/data/bases_cache`.
-
-## 4. Vercel (frontend)
-
-1. Import the repo; set root directory to `WebApp/web`.
-2. Environment variables:
+1. [vercel.com](https://vercel.com) → **Add Project** → import **Sousa-16/PRAXISWeb**.
+2. **Root Directory:** `web` ← important.
+3. **Environment variables:**
 
 | Variable | Value |
-|----------|-------|
-| `API_PROXY_TARGET` | Public API URL, e.g. `https://praxis-web-api.fly.dev` |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+|----------|--------|
+| `API_PROXY_TARGET` | `https://praxis-api.onrender.com` (your Render URL, no trailing slash) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Optional |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional |
 
-Next.js rewrites `/v1/*` and `/health` to the API (see [`next.config.ts`](web/next.config.ts)).
+4. **Deploy**.
 
-## 5. Local production-like stack
+### Step 4 — Link frontend and API
+
+1. Copy your Vercel URL, e.g. `https://praxis-web.vercel.app`.
+2. In **Render** → **praxis-api** → **Environment** → set:
+   - `FRONTEND_ORIGIN` = your Vercel URL
+3. **Save** (triggers redeploy).
+4. Open Vercel URL → try **Use Sample Email Spam Detection**.
+
+---
+
+## Database options
+
+| Option | Where to set `DATABASE_URL` |
+|--------|----------------------------|
+| **Render Postgres** | Render dashboard → database → **Internal Database URL** (on API service) |
+| **Supabase Postgres** | Supabase → Database → **Transaction pooler** URI (port 6543) |
+
+Tables are created automatically on API startup (Alembic).
+
+---
+
+## Supabase Auth (optional)
+
+Skip entirely for guest-only mode.
+
+1. Supabase → **Project Settings** → **API**:
+   - **Project URL** → Vercel `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon public** → Vercel `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **JWT Secret** → Render `SUPABASE_JWT_SECRET`
+2. Supabase → **Authentication** → **Providers** → enable **Email**.
+3. Redeploy Vercel and Render after setting vars.
+
+---
+
+## Local development
 
 ```bash
 cd WebApp
-cp api/.env.example api/.env   # edit DATABASE_URL if using Supabase
 docker compose up --build
 ```
 
 - Web: http://localhost:3000  
 - API: http://localhost:8765  
-- Redis + worker: enabled when `REDIS_URL` is set in compose
 
-## 6. Object storage (multi-instance API)
-
-For horizontal scaling, store bases NPZ files in S3-compatible storage instead of local disk:
+Or without Docker:
 
 ```bash
-OBJECT_STORAGE_BACKEND=s3
-S3_ENDPOINT=https://[ref].storage.supabase.co/storage/v1/s3
-S3_BUCKET=praxis-bases
-S3_ACCESS_KEY=...
-S3_SECRET_KEY=...
-S3_REGION=us-east-1
-S3_PREFIX=bases_cache
+# terminal 1
+cd api && uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+# terminal 2
+cd web && npm run dev
 ```
 
-Supabase: Project Settings → Storage → S3 connection.
+---
 
-## 7. Migrations
+## Health check
 
-```bash
-cd WebApp/api
-alembic upgrade head
-```
+`GET /health` on the API returns `database`, `storage`, `auth`, and `ok`.
 
-Migrations also run automatically on API startup.
+---
 
-## 8. Health check
+## Limitations
 
-`GET /health` returns:
+- **In-memory fit cache** is lost when Render restarts or redeploys; run **Find good rules** again for TimberTrek expand.
+- **Ephemeral disk** on Render: match-count NPZ cache may not survive redeploys unless you add a Render disk (paid) or S3 storage (see `api/.env.example`).
+- CSV bytes live in Postgres — fine for demo sizes.
 
-- `database` — Postgres/SQLite reachable  
-- `storage` — local cache dir writable or S3 bucket reachable  
-- `redis` — `true`/`false`/`null` (null when not configured)  
-- `auth` — whether JWT verification is enabled  
-- `ok` — overall readiness
+---
 
-## 9. Limitations
+## Alternatives
 
-- **In-memory fit cache** is still lost on API restart; re-run **Find good rules** for TimberTrek expand and full profile. Disk/S3 bases cache preserves live match counts only.
-- CSV bytes are stored in Postgres (fine for demo; consider Supabase Storage for large files later).
+- **Fly.io:** see [`api/fly.toml`](api/fly.toml)
+- **Railway:** same Docker image, set `PORT` from platform
+- **Local only:** no Vercel or Render required

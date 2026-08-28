@@ -1,0 +1,33 @@
+# Render Blueprint — PRAXIS Web API
+# Dashboard: New → Blueprint → connect Sousa-16/PRAXISWeb repo
+# Or: New → Web Service → Docker, root directory api, Dockerfile api/Dockerfile
+
+services:
+  - type: web
+    name: praxis-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: BASES_CACHE_DIR
+        value: data/bases_cache
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: praxis-db
+          property: connectionString
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+
+databases:
+  - name: praxis-db
+    plan: basic-256mb
+    databaseName: praxis_web
+    user: praxis

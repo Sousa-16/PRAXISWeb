@@ -15,6 +15,7 @@ COPY app ./app
 COPY data/sample.csv ./data/sample.csv
 
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8765
 EXPOSE 8765
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
