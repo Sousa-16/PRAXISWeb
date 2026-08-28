@@ -1,0 +1,26 @@
+# Production compose for OCI (API only).
+# Frontend runs on Vercel — do not start the web service here.
+#
+# Usage:
+#   cp api/.env.example api/.env   # edit for production
+#   docker compose -f docker-compose.oci.yml up -d --build
+
+services:
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"
+    env_file:
+      - ./api/.env
+    environment:
+      COOKIE_SECURE: "1"
+      BASES_CACHE_DIR: data/bases_cache
+    volumes:
+      - api_data:/app/data/bases_cache
+      - api_db:/app/praxis_data
+
+volumes:
+  api_data:
+  api_db:

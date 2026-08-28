@@ -1,26 +1,39 @@
 # PRAXIS Web deployment
 
-Recommended stack: **Vercel** (frontend) + **Render** (API) + **Supabase** (optional auth).
+**Recommended ($0):** [OCI + Vercel + Supabase](DEPLOYMENT_OCI.md)
+
+Also documented: Render, local Docker, Fly.io.
 
 ```mermaid
 flowchart TB
   subgraph vercel [Vercel]
     NextApp["Next.js (web/)"]
   end
-  subgraph render [Render]
+  subgraph oci [OCI Always Free]
     API[FastAPI Docker]
-    PG[(Render Postgres optional)]
   end
   subgraph supabase [Supabase optional]
     Auth[Auth]
-    SupaPG[Postgres alternative]
+    PG[Postgres]
   end
   User --> NextApp
   NextApp -->|API_PROXY_TARGET| API
   User -->|optional sign-in| Auth
   API --> PG
-  API --> SupaPG
 ```
+
+---
+
+## Quick start: OCI + Vercel
+
+See **[DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md)** for the full Oracle Cloud guide (Ampere VM, Docker API, Cloudflare Tunnel, Supabase).
+
+Summary:
+
+1. OCI Ampere VM (2 OCPU, 12 GB RAM) → `docker compose -f docker-compose.oci.yml up -d --build`
+2. Cloudflare Tunnel → HTTPS URL for the API
+3. Vercel root `web`, `API_PROXY_TARGET` = tunnel URL
+4. Supabase free Postgres in `api/.env` `DATABASE_URL`
 
 ---
 
