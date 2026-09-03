@@ -20,7 +20,7 @@ class Settings:
     cookie_secure: bool = _bool("COOKIE_SECURE", False)
     guest_ttl_hours: int = int(os.environ.get("GUEST_TTL_HOURS", "24"))
     max_upload_bytes: int = int(os.environ.get("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
-    max_rows: int = int(os.environ.get("MAX_ROWS", "5000"))
+    max_rows: int = int(os.environ.get("MAX_ROWS", "100000"))
     max_active_jobs: int = int(os.environ.get("MAX_ACTIVE_JOBS", "1"))
     bases_cache_dir: str = os.environ.get("BASES_CACHE_DIR", "data/bases_cache")
     object_storage_backend: str = os.environ.get("OBJECT_STORAGE_BACKEND", "local").strip().lower()

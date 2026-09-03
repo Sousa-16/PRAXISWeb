@@ -25,7 +25,7 @@ from praxis import PRAXIS, ThresholdGuessBinarizer  # noqa: E402
 
 from app.trees import base_name, profile_paths
 
-FIT_ROWS = 1000
+FIT_ROWS = 2000
 JACCARD_PAIRS = 200
 # Cap how many matching trees we fully unpack after column constraints (best objective first).
 MAX_TREES = 2000
