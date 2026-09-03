@@ -179,6 +179,7 @@ def test_count_matching_uses_bases_index():
         n_trees=3,
         min_objective=1,
         shell={},
+        original_columns=["income", "region"],
     )
     all_ok = count_matching(bundle, [], [])
     assert all_ok["n_matching"] == 3
@@ -186,6 +187,42 @@ def test_count_matching_uses_bases_index():
     assert no_income["n_matching"] == 1
     must_region = count_matching(bundle, [], ["region"])
     assert must_region["n_matching"] == 2
+
+
+def test_base_name_prebinarized_headers():
+    from app.trees import base_name
+
+    droid = ["android.permission.INTERNET <= 0.5", "android.permission.CAMERA <= 0.5"]
+    assert base_name("android.permission.INTERNET <= 0.5", droid) == "android.permission.INTERNET <= 0.5"
+    assert base_name("income <= 30", ["income", "region"]) == "income"
+    assert base_name("income <= 30") == "income"
+
+
+def test_count_matching_prebinarized_column_names():
+    from app.fit import FittedBundle, count_matching
+    import numpy as np
+
+    class FakeModel:
+        def get_tree_paths(self, i):
+            paths = {0: [[1], [-1]], 1: [[2]]}[i]
+            return paths, [0] * len(paths)
+
+    cols = ["age <= 0.5", "hours <= 0.5"]
+    bundle = FittedBundle(
+        model=FakeModel(),
+        bin_names=cols,
+        class_names=["no", "yes"],
+        Xb_te=np.zeros((1, 2), dtype=np.uint8),
+        y_te=np.zeros(1, dtype=int),
+        n_trees=2,
+        min_objective=1,
+        shell={},
+        original_columns=cols,
+    )
+    banned = count_matching(bundle, ["age <= 0.5"], [])
+    assert banned["n_matching"] == 1
+    stripped_miss = count_matching(bundle, ["age"], [])
+    assert stripped_miss["n_matching"] == 2
 
 
 def test_abandon_orphaned_jobs_from_prior_process():

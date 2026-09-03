@@ -46,6 +46,7 @@ class FittedBundle:
     # Bit-packed bases for O(n) numpy match counts (n_trees × n_words uint64).
     bases_bits: np.ndarray | None = None
     feature_bit: dict[str, int] | None = None
+    original_columns: list[str] | None = None
 
 
 def ensure_bases_index(bundle: FittedBundle) -> list[frozenset[str]]:
@@ -57,7 +58,7 @@ def ensure_bases_index(bundle: FittedBundle) -> list[frozenset[str]]:
         out: list[frozenset[str]] = []
         for i in range(bundle.n_trees):
             paths, _ = bundle.model.get_tree_paths(i)
-            out.append(frozenset(_bases_from_paths(paths, bundle.bin_names)))
+            out.append(frozenset(_bases_from_paths(paths, bundle.bin_names, bundle.original_columns)))
         bundle.bases_list = out
     else:
         out = bundle.bases_list
@@ -161,13 +162,15 @@ def jaccard(sets: list[set[str]]) -> float:
     return float(np.mean(scores)) if scores else 1.0
 
 
-def _bases_from_paths(paths, bin_names: list[str]) -> list[str]:
+def _bases_from_paths(
+    paths, bin_names: list[str], original_columns: list[str] | None = None
+) -> list[str]:
     bases: set[str] = set()
     for path in paths:
         for signed in path:
             f = abs(int(signed)) - 1
             fname = bin_names[f] if 0 <= f < len(bin_names) else f"f{f}"
-            bases.add(base_name(fname))
+            bases.add(base_name(fname, original_columns))
     return sorted(bases)
 
 
@@ -324,13 +327,15 @@ def compile_table(
         n_trees=n_trees,
         min_objective=min_objective,
         shell=shell,
+        original_columns=original_columns,
     )
     # Index column bases so Hide-step toggles can show live x / n_trees.
     ensure_bases_index(bundle)
     column_use = {c: 0 for c in original_columns}
     for bases in bundle.bases_list or []:
         for name in bases:
-            column_use[name] = column_use.get(name, 0) + 1
+            if name in column_use:
+                column_use[name] += 1
     shell["column_use"] = column_use
     shell["features"] = [
         {
@@ -361,12 +366,20 @@ def profile_for_constraints(
     for i in range(bundle.n_trees):
         scanned += 1
         paths, preds = bundle.model.get_tree_paths(i)
-        bases = _bases_from_paths(paths, bundle.bin_names)
+        bases = _bases_from_paths(paths, bundle.bin_names, bundle.original_columns)
         if not _allows(bases, banned, keep):
             continue
         matching += 1
         obj, _ = bundle.model.get_tree_objective(i)
-        profile = profile_paths(paths, preds, bundle.bin_names, bundle.class_names, i, int(obj))
+        profile = profile_paths(
+            paths,
+            preds,
+            bundle.bin_names,
+            bundle.class_names,
+            i,
+            int(obj),
+            bundle.original_columns,
+        )
         pred = np.asarray(bundle.model.get_predictions(i, bundle.Xb_te))
         profile["acc"] = float(np.mean(pred == bundle.y_te)) if len(bundle.y_te) else None
         trees.append(profile)

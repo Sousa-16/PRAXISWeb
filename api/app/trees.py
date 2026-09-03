@@ -18,9 +18,22 @@ def pretty_condition(name: str) -> str:
         return name
 
 
-def base_name(name: str) -> str:
-    if " <= " in name:
+def base_name(name: str, original_columns: list[str] | set[str] | None = None) -> str:
+    """Map a binary split name back to a table column.
+
+    ThresholdGuessBinarizer names look like ``age <= 30`` while the CSV column is ``age``.
+    Already-binarized files often *are* named ``age <= 0.5``; those must stay intact.
+    """
+    if " <= " not in name:
+        return name
+    if original_columns is None:
         return name.rsplit(" <= ", 1)[0].strip()
+    originals = original_columns if isinstance(original_columns, set) else set(original_columns)
+    if name in originals:
+        return name
+    stripped = name.rsplit(" <= ", 1)[0].strip()
+    if stripped in originals:
+        return stripped
     return name
 
 
@@ -103,7 +116,15 @@ def tree_diagram(paths, preds, names: list[str], class_names: list[str]) -> dict
     return {"nodes": nodes}
 
 
-def profile_paths(paths, preds, names: list[str], class_names: list[str], idx: int, objective: int) -> dict:
+def profile_paths(
+    paths,
+    preds,
+    names: list[str],
+    class_names: list[str],
+    idx: int,
+    objective: int,
+    original_columns: list[str] | None = None,
+) -> dict:
     splits = set()
     bases = set()
     rules = []
@@ -116,7 +137,7 @@ def profile_paths(paths, preds, names: list[str], class_names: list[str], idx: i
             f = abs(int(signed)) - 1
             fname = names[f] if f < len(names) else f"f{f}"
             splits.add(fname)
-            bases.add(base_name(fname))
+            bases.add(base_name(fname, original_columns))
             true = int(signed) > 0
             steps.append({"name": fname, "true": true})
             parts.append(fname if true else f"not ({fname})")
