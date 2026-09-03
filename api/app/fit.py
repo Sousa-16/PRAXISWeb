@@ -13,10 +13,13 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-REPO = Path(__file__).resolve().parents[3]
-SRC = REPO / "src"
-if SRC.exists() and str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Optional monorepo dev checkout (WebApp/api/... inside PRAXIS/). In Docker, use tree-praxis from pip.
+for _ancestor in Path(__file__).resolve().parents:
+    _src = _ancestor / "src"
+    if (_src / "praxis").is_dir():
+        if str(_src) not in sys.path:
+            sys.path.insert(0, str(_src))
+        break
 
 from praxis import PRAXIS, ThresholdGuessBinarizer  # noqa: E402
 
