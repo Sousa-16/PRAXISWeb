@@ -262,7 +262,7 @@ export function useWorkshop() {
       setKeep([]);
       setStep(0);
       notifications.show({
-        title: "Sample loans loaded",
+        title: "Sample email spam loaded",
         message: `${ds.n_rows} rows. Next: pick the label and search.`,
         color: "copper",
       });

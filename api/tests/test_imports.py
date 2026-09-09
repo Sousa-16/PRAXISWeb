@@ -25,16 +25,7 @@ def test_tables_and_main_do_not_import_praxis():
         assert "praxis" not in _imports(mod), mod
 
 
-def test_routers_do_not_import_praxis():
+def test_routers_directory_removed():
+    """Dead parallel routers were deleted; live routes live in main.py only."""
     routers = Path(__file__).resolve().parents[1] / "app" / "routers"
-    for path in routers.glob("*.py"):
-        if path.name == "__init__.py":
-            continue
-        src = ast.parse(path.read_text())
-        found = set()
-        for node in ast.walk(src):
-            if isinstance(node, ast.Import):
-                found.update(alias.name.split(".")[0] for alias in node.names)
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                found.add(node.module.split(".")[0])
-        assert "praxis" not in found, path.name
+    assert not routers.exists(), "Unused app/routers/ should stay deleted"

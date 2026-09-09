@@ -125,8 +125,8 @@ export function Hero({ busy, onSample, onUpload }: Props) {
         <p className="primer-lead">
           PRAXIS Web is a workshop on top of that algorithm. Upload a labeled CSV; PRAXIS searches for
           the near-best rules; you hide columns you will not have later, try a case, compare survivors,
-          download the set, and save one rule as a permanent policy. After you start, the screens stick to
-          everyday words: table, columns, rules, accuracy, policy.
+          download the set, and save one rule as a named policy (kept while signed in; guests expire).
+          After you start, the screens stick to everyday words: table, columns, rules, accuracy, policy.
         </p>
 
         <ol className="primer-steps">
@@ -144,7 +144,8 @@ export function Hero({ busy, onSample, onUpload }: Props) {
           </li>
           <li>
             <strong>Read &amp; save</strong>: preview impact, download every surviving rule as JSON, or
-            save one rule as a named policy you can score forever.
+            save one rule as a named policy you can score later (sign in to keep it beyond the guest
+            window).
           </li>
         </ol>
 

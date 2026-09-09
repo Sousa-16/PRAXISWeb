@@ -206,6 +206,10 @@ docker compose -f docker-compose.oci.yml up -d --build
 ## What not to run on OCI
 
 - **Do not** run the `web` service — Vercel hosts Next.js.
-- **Redis/worker** — optional; skip for solo demos (API uses in-process threads).
+- **Redis/worker** — skip (local `docker-compose.yml` also has no Redis now). Fits run in-process threads so `fit_cache` stays on the API.
+
+## After API restart
+
+Browse Trees can reuse the last saved profile when column rules match. Changing bans/keeps or TimberTrek expand needs **Find good rules** again.
 
 See also: [DEPLOYMENT.md](DEPLOYMENT.md) for Render and local Docker.

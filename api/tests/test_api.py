@@ -96,9 +96,17 @@ def test_search_empty_and_miss(client):
     client.get("/v1/me")
     empty = client.get("/v1/search")
     assert empty.status_code == 200
-    assert empty.json() == {"jobs": [], "policies": []}
+    assert empty.json() == {"policies": []}
     miss = client.get("/v1/search", params={"q": "zzzz"})
-    assert miss.json() == {"jobs": [], "policies": []}
+    assert miss.json() == {"policies": []}
+
+
+def test_me_exposes_limits(client):
+    mine = client.get("/v1/me")
+    assert mine.status_code == 200
+    body = mine.json()
+    assert isinstance(body["max_rows"], int) and body["max_rows"] > 0
+    assert isinstance(body["max_upload_bytes"], int) and body["max_upload_bytes"] > 0
 
 
 def test_score_policy_unit_only():

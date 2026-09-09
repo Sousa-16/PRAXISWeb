@@ -213,6 +213,9 @@ def health():
         "storage_backend": "s3" if settings.uses_s3_storage() else "local",
         "job_queue": "redis" if settings.uses_job_queue() else "thread",
         "redis": redis_status,
+        "max_rows": settings.max_rows,
+        "max_upload_bytes": settings.max_upload_bytes,
+        "guest_ttl_hours": settings.guest_ttl_hours,
     }
 
 
@@ -222,6 +225,8 @@ def me(ident: Identity = Depends(identity_dep)):
         "session_id": ident.session_id[:6] + "…",
         "signed_in": bool(ident.user_id),
         "guest_ttl_hours": None if ident.user_id else settings.guest_ttl_hours,
+        "max_rows": settings.max_rows,
+        "max_upload_bytes": settings.max_upload_bytes,
         "notice": (
             "Other visitors cannot open your uploads. They are tied to this browser"
             " (or your account if you sign in). Guest data is deleted after "
@@ -249,7 +254,8 @@ def delete_mine(session: Session = Depends(get_session), ident: Identity = Depen
 def _store_dataset(session: Session, ident: Identity, filename: str, raw: bytes) -> dict:
     purge_expired(session)
     if len(raw) > settings.max_upload_bytes:
-        raise HTTPException(413, "File is too large (20 MB max).")
+        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
+        raise HTTPException(413, f"File is too large ({mb} MB max).")
     from app.tables import preview_frame, read_csv
 
     df = read_csv(raw)
@@ -352,9 +358,18 @@ def profile_job(
         raise HTTPException(409, "Job has not finished compiling.")
     bundle = fit_cache.get(job_id)
     if bundle is None:
+        stored = json.loads(job.result_json)
+        cons = stored.get("constraints") or {}
+        same = (
+            list(cons.get("banned") or []) == list(body.banned or [])
+            and list(cons.get("keep") or []) == list(body.keep or [])
+        )
+        if same and stored.get("profiled") and stored.get("trees"):
+            return stored
         raise HTTPException(
             409,
-            "The fitted model is no longer in memory (API restarted). Run Find good rules again.",
+            "The fitted model is no longer in memory (API restarted). "
+            "Browse the last saved profile, or run Find good rules again to change column rules.",
         )
     try:
         result = profile_for_constraints(bundle, body.banned, body.keep, body.max_trees)
@@ -620,7 +635,8 @@ async def score_saved_batch(
     policy = json.loads(stored.policy_json)
     raw = await file.read()
     if len(raw) > settings.max_upload_bytes:
-        raise HTTPException(413, "File is too large (20 MB max).")
+        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
+        raise HTTPException(413, f"File is too large ({mb} MB max).")
     from app.tables import read_csv
 
     df = read_csv(raw)

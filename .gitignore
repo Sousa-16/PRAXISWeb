@@ -19,3 +19,8 @@ web/tsconfig.tsbuildinfo
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Secrets / SSH (never commit)
+*.key
+ssh-key*
+*.pem

@@ -298,8 +298,8 @@ export function StepSave({
         <p className="section-label">Keep it</p>
         <h2 className="panel-head">Save as policy</h2>
         <Text size="sm" c="dimmed" mb="sm">
-          Locks this exact rule so you can score new rows later from a permanent page: same thresholds,
-          same encodings, no new search.
+          Locks this exact rule so you can score new rows later from its policy page: same thresholds,
+          same encodings, no new search. Sign in to keep it; guest policies expire with guest data.
         </Text>
         <TextInput
           label="Policy name (optional)"

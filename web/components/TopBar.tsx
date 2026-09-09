@@ -17,7 +17,6 @@ import { praxisWeb } from "@/lib/api";
 import { requestStartPage } from "@/lib/sessionStore";
 
 type Hits = {
-  jobs: { id: string; label: string; status: string }[];
   policies: { id: string; job_id: string; tree_id: number; name?: string }[];
 };
 
@@ -55,7 +54,7 @@ export function TopBar({ right }: { right?: ReactNode }) {
     try {
       setHits(await praxisWeb.search(query));
     } catch {
-      setHits({ jobs: [], policies: [] });
+      setHits({ policies: [] });
     } finally {
       setSearching(false);
     }
@@ -98,36 +97,20 @@ export function TopBar({ right }: { right?: ReactNode }) {
               />
               {hits && (
                 <div className="search-pop" style={{ padding: 12 }}>
-                  {!hits.jobs.length && !hits.policies.length ? (
+                  {!hits.policies.length ? (
                     <Text size="sm" c="dimmed">
-                      Nothing in your saved work matches “{query}”.
+                      Nothing in your saved policies matches “{query}”.
                     </Text>
                   ) : (
                     <>
-                      {hits.policies.length > 0 && (
-                        <>
-                          <Text size="xs" c="dimmed" fw={600} tt="uppercase" mb={4}>
-                            Policies
-                          </Text>
-                          {hits.policies.map((p) => (
-                            <Anchor key={p.id} href={`/policy/${p.id}`} size="sm" display="block" mb={2} c="copper">
-                              {p.name ? `${p.name} (${p.id})` : p.id}
-                            </Anchor>
-                          ))}
-                        </>
-                      )}
-                      {hits.jobs.length > 0 && (
-                        <>
-                          <Text size="xs" c="dimmed" fw={600} tt="uppercase" mt={6} mb={4}>
-                            Searches
-                          </Text>
-                          {hits.jobs.map((j) => (
-                            <Text key={j.id} size="sm">
-                              {j.id} · {j.label} · {j.status}
-                            </Text>
-                          ))}
-                        </>
-                      )}
+                      <Text size="xs" c="dimmed" fw={600} tt="uppercase" mb={4}>
+                        Policies
+                      </Text>
+                      {hits.policies.map((p) => (
+                        <Anchor key={p.id} href={`/policy/${p.id}`} size="sm" display="block" mb={2} c="copper">
+                          {p.name ? `${p.name} (${p.id})` : p.id}
+                        </Anchor>
+                      ))}
                     </>
                   )}
                 </div>

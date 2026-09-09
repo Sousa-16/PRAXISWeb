@@ -1,9 +1,4 @@
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
   api:
     build:
       context: ./api
@@ -11,27 +6,10 @@ services:
       - "8765:8765"
     environment:
       DATABASE_URL: sqlite:///./praxis_web.db
-      REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGIN: http://localhost:3000
       BASES_CACHE_DIR: data/bases_cache
     volumes:
       - bases_cache:/app/data/bases_cache
-    depends_on:
-      - redis
-
-  worker:
-    build:
-      context: ./api
-    command: ["python", "worker.py"]
-    environment:
-      DATABASE_URL: sqlite:///./praxis_web.db
-      REDIS_URL: redis://redis:6379/0
-      BASES_CACHE_DIR: data/bases_cache
-    volumes:
-      - bases_cache:/app/data/bases_cache
-    depends_on:
-      - redis
-      - api
 
   web:
     build:

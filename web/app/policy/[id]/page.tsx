@@ -21,11 +21,12 @@ import { TreeSvg } from "@/components/TreeSvg";
 import { praxisWeb } from "@/lib/api";
 import { downloadText } from "@/lib/download";
 import { pythonScorer } from "@/lib/policyExport";
-import type { Policy, ScoreOut } from "@/lib/types";
+import type { Me, Policy, ScoreOut } from "@/lib/types";
 
 export default function PolicyPage() {
   const params = useParams<{ id: string }>();
   const [policy, setPolicy] = useState<Policy | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [row, setRow] = useState<Record<string, string>>({});
   const [score, setScore] = useState<ScoreOut | null>(null);
@@ -37,6 +38,7 @@ export default function PolicyPage() {
       .getPolicy(params.id)
       .then(setPolicy)
       .catch((err) => setError(String(err)));
+    praxisWeb.me().then(setMe).catch(() => setMe(null));
   }, [params.id]);
 
   async function scoreRow() {
@@ -178,7 +180,7 @@ export default function PolicyPage() {
             <h2 className="panel-head">Score a whole file</h2>
             <Text size="sm" c="dimmed" mb="sm">
               Upload a CSV with the same columns. You get prediction, rules_agree, and reason columns
-              added. Max 5,000 rows.
+              added. Max {(me?.max_rows ?? 100000).toLocaleString()} rows.
             </Text>
             <FileButton onChange={scoreBatch} accept=".csv,text/csv">
               {(props) => (

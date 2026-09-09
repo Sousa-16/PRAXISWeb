@@ -24,6 +24,8 @@ type Props = {
   msgIdx: number;
   job: Job | null;
   result: JobResult | null;
+  maxRows?: number;
+  maxUploadBytes?: number;
   onSearch: () => void;
   onUpload: (file: File | null) => void;
   onContinue: () => void;
@@ -39,15 +41,19 @@ export function StepLoad({
   msgIdx,
   job,
   result,
+  maxRows = 100000,
+  maxUploadBytes = 20 * 1024 * 1024,
   onSearch,
   onUpload,
   onContinue,
 }: Props) {
+  const maxMb = Math.round(maxUploadBytes / (1024 * 1024));
   return (
     <Stack gap="md" className="step-flow">
       {warnOwn && (
         <Alert color="yellow" variant="light" title="Your own file">
-          Other visitors cannot open this upload. Do not upload secrets. Max 20 MB and 5,000 rows.
+          Other visitors cannot open this upload. Do not upload secrets. Max {maxMb} MB and{" "}
+          {maxRows.toLocaleString()} rows.
         </Alert>
       )}
       <div className="panel">

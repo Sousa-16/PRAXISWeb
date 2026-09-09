@@ -27,7 +27,13 @@ export function AuthBar({ signedIn, onChange }: Props) {
       }
     });
     const { data } = sb.auth.onAuthStateChange((_event, session) => {
-      setJwt(session?.access_token ?? null);
+      const token = session?.access_token ?? null;
+      setJwt(token);
+      if (token) {
+        praxisWeb.attach().then(onChange).catch(() => onChange());
+      } else {
+        onChange();
+      }
     });
     return () => data.subscription.unsubscribe();
   }, [onChange]);

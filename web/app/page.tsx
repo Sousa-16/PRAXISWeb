@@ -40,6 +40,8 @@ export default function HomePage() {
           msgIdx={w.msgIdx}
           job={w.job}
           result={w.result}
+          maxRows={w.me?.max_rows}
+          maxUploadBytes={w.me?.max_upload_bytes}
           onSearch={w.startSearch}
           onUpload={w.onUpload}
           onContinue={() => w.setStep(1)}

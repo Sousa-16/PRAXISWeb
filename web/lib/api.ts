@@ -145,7 +145,6 @@ export const praxisWeb = {
   },
   search: (q: string) =>
     api<{
-      jobs: { id: string; label: string; status: string }[];
       policies: { id: string; job_id: string; tree_id: number; name?: string }[];
     }>(`/v1/search?q=${encodeURIComponent(q)}`),
 };
