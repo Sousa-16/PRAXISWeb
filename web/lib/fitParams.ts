@@ -91,3 +91,61 @@ export function clampFitParams(raw: Partial<FitParams>): FitParams {
   if (next.lookahead_k > maxK) next.lookahead_k = maxK;
   return next;
 }
+
+/** Snap a value to the parameter step (avoids float drift on the slider). */
+export function snapFitParam(value: number, step: number): number {
+  if (!Number.isFinite(value) || step <= 0) return value;
+  const decimals = Math.max(0, (String(step).split(".")[1] || "").length);
+  const snapped = Math.round(value / step) * step;
+  return Number(snapped.toFixed(decimals));
+}
+
+/**
+ * Discrete tick marks for a stepped slider.
+ * Dense ranges get a thinned set of ticks; ends are always labeled.
+ */
+export function fitParamMarks(
+  min: number,
+  max: number,
+  step: number,
+  format: (v: number) => string,
+  opts?: { maxTicks?: number; maxLabels?: number },
+): { value: number; label?: string }[] {
+  if (!(max > min) || step <= 0) {
+    return [{ value: min, label: format(min) }];
+  }
+  const maxTicks = opts?.maxTicks ?? 11;
+  const maxLabels = opts?.maxLabels ?? 6;
+  const nSteps = Math.max(1, Math.round((max - min) / step));
+  // Small ranges (depth, lookahead): tick + label every step.
+  const tickStride = Math.max(1, Math.ceil(nSteps / (maxTicks - 1)));
+  const labelStride =
+    nSteps <= 8 ? tickStride : Math.max(tickStride, Math.ceil(nSteps / (maxLabels - 1)));
+  const labelEvery = Math.ceil(labelStride / tickStride) * tickStride;
+
+  const marks: { value: number; label?: string }[] = [];
+  for (let i = 0; i <= nSteps; i += tickStride) {
+    const value = snapFitParam(min + i * step, step);
+    const atEnd = i === 0 || i >= nSteps;
+    const labeled = atEnd || i % labelEvery === 0;
+    marks.push(labeled ? { value, label: format(value) } : { value });
+  }
+
+  const last = marks[marks.length - 1];
+  const end = snapFitParam(max, step);
+  if (Math.abs(last.value - end) > step * 0.25) {
+    marks.push({ value: end, label: format(end) });
+  } else {
+    marks[marks.length - 1] = { value: end, label: format(end) };
+  }
+  return marks;
+}
+
+export function formatFitParamDisplay(key: FitParamKey, value: number, asPercent = false): string {
+  if (asPercent || key === "rashomon_mult") {
+    const pct = Math.round(value * 1000) / 10;
+    return `${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)}%`;
+  }
+  if (key === "lambda_reg") return snapFitParam(value, 0.001).toFixed(3);
+  return Math.round(value).toLocaleString();
+}

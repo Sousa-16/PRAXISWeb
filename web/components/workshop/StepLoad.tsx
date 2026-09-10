@@ -6,7 +6,6 @@ import {
   Collapse,
   FileButton,
   Group,
-  NumberInput,
   Progress,
   Select,
   Stack,
@@ -15,6 +14,7 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useState } from "react";
+import { FitParamControl } from "@/components/workshop/FitParamControl";
 import { COMPILE_MSGS } from "@/lib/constants";
 import {
   DEFAULT_FIT_PARAMS,
@@ -150,35 +150,25 @@ export function StepLoad({
             </Button>
           </Group>
           <Collapse in={settingsOpen}>
-            <Stack gap="md" mt="md">
+            <Stack gap="lg" mt="md">
               {FIT_PARAM_FIELDS.map((field) => {
                 const bounds = FIT_PARAM_BOUNDS[field.key];
                 const max =
                   field.key === "lookahead_k" ? Math.min(bounds.max, maxLookahead) : bounds.max;
                 const isPct = field.key === "rashomon_mult";
                 return (
-                  <NumberInput
+                  <FitParamControl
                     key={field.key}
+                    paramKey={field.key}
                     label={field.label}
                     description={field.description}
-                    value={
-                      isPct
-                        ? Math.round(fitParams.rashomon_mult * 1000) / 10
-                        : fitParams[field.key]
-                    }
-                    onChange={(v) => {
-                      if (v === "" || v === undefined || v === null) return;
-                      if (isPct) updateParam("rashomon_mult", Number(v) / 100);
-                      else updateParam(field.key, Number(v));
-                    }}
-                    min={isPct ? bounds.min * 100 : bounds.min}
-                    max={isPct ? bounds.max * 100 : max}
-                    step={isPct ? 1 : bounds.step}
-                    decimalScale={field.key === "lambda_reg" ? 3 : isPct ? 1 : 0}
-                    suffix={isPct ? "%" : undefined}
-                    w="100%"
-                    maw={420}
+                    value={fitParams[field.key]}
+                    min={bounds.min}
+                    max={max}
+                    step={bounds.step}
+                    asPercent={isPct}
                     disabled={busy || compiling}
+                    onChange={(v) => updateParam(field.key, v)}
                   />
                 );
               })}
