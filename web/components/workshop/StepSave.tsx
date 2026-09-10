@@ -16,7 +16,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { PredictionBoard } from "@/components/PredictionBoard";
-import { TreeSvg } from "@/components/TreeSvg";
+import { TreeFlow } from "@/components/TreeFlow";
 import { praxisWeb } from "@/lib/api";
 import { downloadText } from "@/lib/download";
 import { pythonScorer } from "@/lib/policyExport";
@@ -181,7 +181,7 @@ export function StepSave({
         </Group>
         {ruleView === "diagram" && selected.diagram?.nodes ? (
           <div className="tree-scroll compare-tree-diagram">
-            <TreeSvg nodes={selected.diagram.nodes} highlight={score?.prediction} />
+            <TreeFlow nodes={selected.diagram.nodes} highlight={score?.prediction} />
           </div>
         ) : (
           <Stack gap={4}>

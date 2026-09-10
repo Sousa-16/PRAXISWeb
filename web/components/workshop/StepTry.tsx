@@ -14,7 +14,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { PAGE_SIZE } from "@/lib/constants";
-import { TreeSvg } from "@/components/TreeSvg";
+import { TreeFlow } from "@/components/TreeFlow";
 import { TimberTrekPanel } from "@/components/workshop/TimberTrekPanel";
 import type { JobResult, RuleSort, TreeProfile } from "@/lib/types";
 
@@ -84,7 +84,7 @@ export function StepTry({
       if (tree.diagram?.nodes?.length) {
         return (
           <div className={expanded ? "compare-tree-diagram compare-tree-diagram--expanded" : "compare-tree-diagram"}>
-            <TreeSvg nodes={tree.diagram.nodes} expanded={expanded} />
+            <TreeFlow nodes={tree.diagram.nodes} expanded={expanded} />
           </div>
         );
       }
@@ -233,31 +233,28 @@ export function StepTry({
             </Group>
           </Group>
           <Text size="xs" c="dimmed" mb="sm">
-            Click a tree to expand it full screen.
+            Scroll to zoom, drag to pan. Use Expand for a larger view.
           </Text>
           <SimpleGrid cols={{ base: 1, md: compared.length >= 3 ? 2 : compared.length }}>
             {compared.map((tree) => (
               <div key={tree.id} className={`rule-tile compare-tree ${tree.id === selected.id ? "is-selected" : ""}`}>
-                <Group justify="space-between" mb={4}>
+                <Group justify="space-between" mb={4} wrap="wrap">
                   <Text fw={600}>Tree {tree.id}</Text>
-                  {tree.acc != null && (
-                    <Badge variant="light" color="sea">
-                      {(tree.acc * 100).toFixed(1)}%
-                    </Badge>
-                  )}
+                  <Group gap="xs">
+                    {tree.acc != null && (
+                      <Badge variant="light" color="sea">
+                        {(tree.acc * 100).toFixed(1)}%
+                      </Badge>
+                    )}
+                    <Button size="compact-xs" variant="default" onClick={() => setExpandedTree(tree)}>
+                      Expand
+                    </Button>
+                  </Group>
                 </Group>
                 <Text size="xs" c="dimmed" mb="sm">
                   {treeMeta(tree)}
                 </Text>
-                <div
-                  className="compare-tree-expand"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setExpandedTree(tree)}
-                  onKeyDown={(e) => e.key === "Enter" && setExpandedTree(tree)}
-                >
-                  {renderCompareBody(tree)}
-                </div>
+                {renderCompareBody(tree)}
                 {tree.id !== selected.id && (
                   <Button
                     size="compact-xs"

@@ -613,44 +613,97 @@ body {
 }
 
 .compare-tree-diagram {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 0.5rem;
   background: color-mix(in srgb, var(--panel-solid) 85%, var(--mist));
   max-width: 100%;
+  height: 360px;
+}
+
+.compare-tree-diagram--expanded {
+  height: min(85vh, 960px);
 }
 
 .tree-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   max-width: 100%;
 }
 
-.compare-tree-diagram svg {
-  display: block;
-  min-width: 260px;
-  max-height: 360px;
+.tree-flow {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
 }
 
-.compare-tree-diagram--expanded svg {
-  max-height: min(85vh, 960px);
+.tree-flow--expanded {
+  min-height: min(85vh, 960px);
 }
 
-.compare-tree-expand {
-  cursor: zoom-in;
+.tree-flow .react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  transition: background 0.15s ease;
+  overflow: hidden;
 }
 
-.compare-tree-expand:hover {
-  background: color-mix(in srgb, var(--copper-soft) 35%, transparent);
+.tree-flow .react-flow__controls-button {
+  background: var(--panel-solid);
+  border-bottom-color: var(--line);
+  fill: var(--ink);
 }
 
-.compare-tree-expand:focus-visible {
-  outline: 2px solid var(--copper);
-  outline-offset: 2px;
+.tree-flow .react-flow__controls-button:hover {
+  background: color-mix(in srgb, var(--copper-soft) 35%, var(--panel-solid));
+}
+
+.tree-flow-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tree-flow-node--leaf {
+  border-radius: 8px;
+  background: var(--sea);
+  color: #fff;
+}
+
+.tree-flow-node--split {
+  border-radius: 5px;
+  background: var(--panel-solid);
+  color: var(--ink);
+  border: 1.5px solid var(--sea);
+}
+
+.tree-flow-node--hot {
+  background: var(--copper);
+  border-color: transparent;
+  color: #fff;
+}
+
+.tree-flow-node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-flow-handle {
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  opacity: 0;
+  border: none !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }
 
 .col-chip {
