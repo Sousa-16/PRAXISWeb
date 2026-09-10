@@ -330,7 +330,7 @@ export function StepTry({
         <h2 className="panel-head">Try this tree on one row</h2>
         <Text size="sm" c="dimmed" mt={4}>
           Fill in values for a single case to see what this tree predicts and which branch it took. You can
-          skip this and go straight to read &amp; save.
+          skip this and go straight to score &amp; export.
         </Text>
         <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
           {required.map((col) => {
@@ -370,7 +370,7 @@ export function StepTry({
           >
             Try this row
           </Button>
-          <Button onClick={onContinue}>Continue to read &amp; save</Button>
+          <Button onClick={onContinue}>Continue to score &amp; export</Button>
         </Group>
       </div>
     </Stack>

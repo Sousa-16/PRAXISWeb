@@ -1,13 +1,13 @@
 import type { Policy } from "./types";
 
-/** Embed a frozen policy in a stdlib-only Python CSV scorer. */
+/** Embed a frozen rule in a stdlib-only Python CSV scorer. */
 export function pythonScorer(policy: Policy): string {
   const doc = JSON.stringify(policy, null, 2);
   return `#!/usr/bin/env python3
-"""Standalone scorer for PRAXIS Web policy ${policy.id || ""}. Stdlib only: no server, no ML stack.
+"""Standalone scorer for a PRAXIS Web rule${policy.id ? ` (${policy.id})` : ""}. Stdlib only: no server, no ML stack.
 
 Usage:
-  python score_policy.py rows.csv > scored.csv
+  python score_rule.py rows.csv > scored.csv
 """
 import csv
 import json
@@ -68,7 +68,7 @@ def score(row):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit("usage: python score_policy.py rows.csv > scored.csv")
+        sys.exit("usage: python score_rule.py rows.csv > scored.csv")
     with open(sys.argv[1], newline="") as fh:
         rows = list(csv.DictReader(fh))
     fields = (list(rows[0].keys()) if rows else []) + ["prediction", "rules_agree"]

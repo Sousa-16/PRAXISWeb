@@ -32,12 +32,9 @@ export function useWorkshop() {
   const [page, setPage] = useState(1);
   const [row, setRow] = useState<Record<string, string>>({});
   const [score, setScore] = useState<ScoreOut | null>(null);
-  const [policyId, setPolicyId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [warnOwn, setWarnOwn] = useState(false);
   const [compare, setCompare] = useState<number[]>([]);
-  const [polName, setPolName] = useState("");
-  const [polNotes, setPolNotes] = useState("");
   const [impact, setImpact] = useState<ImpactOut | null>(null);
   const [impactCol, setImpactCol] = useState<string | null>(null);
   const [msgIdx, setMsgIdx] = useState(0);
@@ -90,11 +87,8 @@ export function useWorkshop() {
       setPage(1);
       setRow({});
       setScore(null);
-      setPolicyId(null);
       setWarnOwn(false);
       setCompare([]);
-      setPolName("");
-      setPolNotes("");
       setImpact(null);
       setImpactCol(null);
       setStep(0);
@@ -178,7 +172,6 @@ export function useWorkshop() {
   useEffect(() => {
     setPage(1);
     setScore(null);
-    setPolicyId(null);
     setCompare([]);
     setImpact(null);
   }, [banned, keep]);
@@ -338,31 +331,6 @@ export function useWorkshop() {
     }
   }
 
-  async function savePolicy() {
-    if (!job || !selected) return;
-    setBusy(true);
-    try {
-      const policy = await praxisWeb.savePolicy({
-        job_id: job.id,
-        tree_id: selected.id,
-        banned,
-        keep,
-        name: polName.trim(),
-        notes: polNotes.trim(),
-      });
-      setPolicyId(policy.id || null);
-      notifications.show({
-        title: "Policy saved",
-        message: policy.name ? `“${policy.name}” (${policy.id})` : policy.id ? `id ${policy.id}` : "Saved.",
-        color: "copper",
-      });
-    } catch (err) {
-      notifications.show({ title: "Could not save", message: String(err), color: "red" });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function previewImpact() {
     if (!job || !selected) return;
     setBusy(true);
@@ -412,14 +380,13 @@ export function useWorkshop() {
   }
 
   async function wipe() {
-    if (!window.confirm("Delete every upload, search, and policy for this browser (or account)?")) return;
+    if (!window.confirm("Delete every upload and search for this browser?")) return;
     await praxisWeb.deleteMine();
     setDataset(null);
     setJob(null);
     setBanned([]);
     setKeep([]);
     setScore(null);
-    setPolicyId(null);
     clearWorkshopStore();
     refreshMe();
     notifications.show({ title: "Deleted", message: "Your rows on this server are gone.", color: "copper" });
@@ -444,15 +411,10 @@ export function useWorkshop() {
     row,
     setRow,
     score,
-    policyId,
     busy,
     warnOwn,
     compare,
     setCompare,
-    polName,
-    setPolName,
-    polNotes,
-    setPolNotes,
     impact,
     impactCol,
     setImpactCol,
@@ -489,7 +451,6 @@ export function useWorkshop() {
     simulate,
     continueToSave,
     profileAndContinue,
-    savePolicy,
     previewImpact,
     resetImpact,
     downloadTimbertrekBest,

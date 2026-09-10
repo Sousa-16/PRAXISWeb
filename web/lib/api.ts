@@ -1,18 +1,5 @@
 import type { DatasetPreview, ImpactOut, Job, JobResult, Me, Policy, ScoreOut } from "./types";
 
-const JWT_KEY = "praxis_web_jwt";
-
-export function getJwt(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(JWT_KEY);
-}
-
-export function setJwt(token: string | null) {
-  if (typeof window === "undefined") return;
-  if (token) window.localStorage.setItem(JWT_KEY, token);
-  else window.localStorage.removeItem(JWT_KEY);
-}
-
 async function parse(res: Response) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -26,25 +13,17 @@ async function parse(res: Response) {
   return data;
 }
 
-function headers(extra?: HeadersInit): Headers {
-  const h = new Headers(extra);
-  const jwt = getJwt();
-  if (jwt) h.set("Authorization", `Bearer ${jwt}`);
-  return h;
-}
-
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     ...init,
     credentials: "include",
-    headers: headers(init.headers),
+    headers: init.headers,
   });
   return parse(res) as Promise<T>;
 }
 
 export const praxisWeb = {
   me: () => api<Me>("/v1/me"),
-  attach: () => api<{ attached: number }>("/v1/auth/attach", { method: "POST" }),
   deleteMine: () => api<{ ok: boolean }>("/v1/me/data", { method: "DELETE" }),
   sample: () => api<DatasetPreview>("/v1/datasets/sample", { method: "POST" }),
   upload: async (file: File) => {
@@ -77,34 +56,26 @@ export const praxisWeb = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
-  savePolicy: (body: {
-    job_id: string;
-    tree_id: number;
-    banned: string[];
-    keep: string[];
-    name?: string;
-    notes?: string;
-  }) =>
-    api<Policy>("/v1/policies", {
+  freezeJob: (jobId: string, body: { tree_id: number; banned: string[]; keep: string[] }) =>
+    api<Policy>(`/v1/jobs/${jobId}/freeze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
-  getPolicy: (id: string) => api<Policy>(`/v1/policies/${id}`),
-  scorePolicy: (id: string, row: Record<string, string>) =>
-    api<ScoreOut>(`/v1/policies/${id}/score`, {
+  scoreJobBatch: async (
+    jobId: string,
+    file: File,
+    body: { tree_id: number; banned: string[]; keep: string[] },
+  ): Promise<string> => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("tree_id", String(body.tree_id));
+    form.append("banned", JSON.stringify(body.banned));
+    form.append("keep", JSON.stringify(body.keep));
+    const res = await fetch(`/v1/jobs/${jobId}/score_batch`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ row }),
-    }),
-  scorePolicyBatch: async (id: string, file: File): Promise<string> => {
-    const body = new FormData();
-    body.append("file", file);
-    const res = await fetch(`/v1/policies/${id}/score_batch`, {
-      method: "POST",
-      body,
+      body: form,
       credentials: "include",
-      headers: headers(),
     });
     if (!res.ok) await parse(res);
     return res.text();
@@ -129,7 +100,7 @@ export const praxisWeb = {
     const res = await fetch(`/v1/jobs/${jobId}/timbertrek`, {
       method: "POST",
       credentials: "include",
-      headers: headers({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!res.ok) await parse(res);
@@ -143,8 +114,4 @@ export const praxisWeb = {
       nExported: Number(res.headers.get("X-PRAXIS-N-Exported") || 0),
     };
   },
-  search: (q: string) =>
-    api<{
-      policies: { id: string; job_id: string; tree_id: number; name?: string }[];
-    }>(`/v1/search?q=${encodeURIComponent(q)}`),
 };

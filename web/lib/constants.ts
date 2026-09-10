@@ -8,7 +8,7 @@ export const STEPS = [
   { title: "Load a Table", detail: "CSV or sample" },
   { title: "Set Tree Rules", detail: "Won’t have / must" },
   { title: "Browse Trees", detail: "Optional: try a row" },
-  { title: "Read & Save", detail: "Keep the rule" },
+  { title: "Score & export", detail: "Use this rule" },
 ] as const;
 
 export const COMPILE_MSGS = [

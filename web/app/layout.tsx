@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "PRAXIS Web",
   description:
-    "PRAXIS finds near-optimal decision-tree Rashomon sets fast. PRAXIS Web lets you explore them, constrain columns, and ship a readable policy.",
+    "PRAXIS finds near-optimal decision-tree Rashomon sets fast. PRAXIS Web lets you explore them, constrain columns, score rows, and export a readable rule.",
 };
 
 export const viewport: Viewport = {

@@ -4,17 +4,22 @@ import { useMemo, useState } from "react";
 import {
   Badge,
   Button,
+  FileButton,
   Group,
   Modal,
   Select,
+  SimpleGrid,
   Stack,
   Table,
   Text,
-  Textarea,
   TextInput,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { PredictionBoard } from "@/components/PredictionBoard";
 import { TreeSvg } from "@/components/TreeSvg";
+import { praxisWeb } from "@/lib/api";
+import { downloadText } from "@/lib/download";
+import { pythonScorer } from "@/lib/policyExport";
 import { downloadRashomonTrie, rashomonTrieText } from "@/lib/rashomonExport";
 import type { ImpactOut, JobResult, ScoreOut, TreeProfile } from "@/lib/types";
 
@@ -27,19 +32,18 @@ type Props = {
   keep: string[];
   jobId?: string;
   columns: string[];
+  row: Record<string, string>;
+  setRow: (fn: (r: Record<string, string>) => Record<string, string>) => void;
+  scoreCols: string[];
+  maxRows?: number;
   impact: ImpactOut | null;
   impactCol: string | null;
   setImpactCol: (v: string | null) => void;
   impactClasses: string[];
   busy: boolean;
+  onScore: () => void;
   onImpact: () => void;
   onResetImpact: () => void;
-  polName: string;
-  setPolName: (v: string) => void;
-  polNotes: string;
-  setPolNotes: (v: string) => void;
-  onSave: () => void;
-  policyId: string | null;
 };
 
 export function StepSave({
@@ -51,22 +55,23 @@ export function StepSave({
   keep,
   jobId,
   columns,
+  row,
+  setRow,
+  scoreCols,
+  maxRows = 100000,
   impact,
   impactCol,
   setImpactCol,
   impactClasses,
   busy,
+  onScore,
   onImpact,
   onResetImpact,
-  polName,
-  setPolName,
-  polNotes,
-  setPolNotes,
-  onSave,
-  policyId,
 }: Props) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [ruleView, setRuleView] = useState<"diagram" | "text">("diagram");
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const exportFilename = `surviving_rules${jobId ? `_${jobId}` : ""}.json`;
   const exportJson = useMemo(() => {
     if (!result) return "";
@@ -94,9 +99,57 @@ export function StepSave({
         ? "Your file has mostly numeric columns (typical for spambase-style data). Each distinct value becomes a group; pick a column with few values, or leave this empty for overall only."
         : "Leave empty for one overall summary, or pick a column to compare prediction rates across groups (works best for categorical and binary columns).";
 
+  async function scoreBatch(file: File | null) {
+    if (!file || !jobId) return;
+    setBatchBusy(true);
+    try {
+      const csv = await praxisWeb.scoreJobBatch(jobId, file, {
+        tree_id: selected.id,
+        banned,
+        keep,
+      });
+      downloadText(`scored_${jobId}.csv`, csv, "text/csv");
+      notifications.show({
+        title: "Batch scored",
+        message: "Your file is downloading with prediction, rules_agree, and reason columns added.",
+        color: "copper",
+      });
+    } catch (err) {
+      notifications.show({ title: "Batch scoring failed", message: String(err), color: "red" });
+    } finally {
+      setBatchBusy(false);
+    }
+  }
+
+  async function downloadFrozen(kind: "json" | "python") {
+    if (!jobId) return;
+    setExportBusy(true);
+    try {
+      const frozen = await praxisWeb.freezeJob(jobId, {
+        tree_id: selected.id,
+        banned,
+        keep,
+      });
+      if (kind === "json") {
+        downloadText(`rule_${jobId}_${selected.id}.json`, JSON.stringify(frozen, null, 2), "application/json");
+      } else {
+        downloadText(`score_rule_${jobId}_${selected.id}.py`, pythonScorer(frozen), "text/x-python");
+      }
+    } catch (err) {
+      notifications.show({ title: "Could not export rule", message: String(err), color: "red" });
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   return (
     <Stack gap="md" className="step-flow">
-      {score && <PredictionBoard score={score} />}
+      {score && (
+        <PredictionBoard
+          score={score}
+          caption={`${score.agree} of ${score.n} other surviving rules agree.`}
+        />
+      )}
 
       <div className="panel">
         <Group justify="space-between" mb="sm" wrap="wrap">
@@ -143,25 +196,94 @@ export function StepSave({
 
       {result && (
         <div className="panel">
-          <p className="section-label">Export</p>
-          <h2 className="panel-head">Download every surviving rule</h2>
+          <p className="section-label">One case</p>
+          <h2 className="panel-head">Score a row</h2>
           <Text size="sm" c="dimmed" mb="sm">
-            {leftover.length} rule{leftover.length === 1 ? "" : "s"} still fit your column choices
-            {banned.length || keep.length
-              ? ` (${banned.length} won’t-have, ${keep.length} must-use)`
-              : " (no columns restricted)"}. View or download them as a{" "}
-            <span className="mono">.json</span> file you can archive or share.
+            Fill in the columns this rule uses, then score. Same encodings as the search—no new fit.
+          </Text>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
+            {scoreCols.map((col) => {
+              const codes = result.column_codes?.[col];
+              if (codes && Object.keys(codes).length) {
+                return (
+                  <Select
+                    key={col}
+                    label={col}
+                    data={Object.keys(codes)}
+                    value={row[col] || null}
+                    onChange={(v) => setRow((r) => ({ ...r, [col]: v || "" }))}
+                  />
+                );
+              }
+              return (
+                <TextInput
+                  key={col}
+                  label={col}
+                  value={row[col] || ""}
+                  onChange={(e) => setRow((r) => ({ ...r, [col]: e.currentTarget.value }))}
+                />
+              );
+            })}
+          </SimpleGrid>
+          <Button
+            mt="md"
+            onClick={onScore}
+            loading={busy}
+            disabled={!jobId || scoreCols.some((c) => !row[c])}
+          >
+            Score
+          </Button>
+        </div>
+      )}
+
+      {result && jobId && (
+        <div className="panel">
+          <p className="section-label">Batch</p>
+          <h2 className="panel-head">Score a whole file</h2>
+          <Text size="sm" c="dimmed" mb="sm">
+            Upload a CSV with the same columns. You get prediction, rules_agree, and reason columns
+            added. Max {maxRows.toLocaleString()} rows.
+          </Text>
+          <FileButton onChange={scoreBatch} accept=".csv,text/csv">
+            {(props) => (
+              <Button {...props} variant="light" loading={batchBusy}>
+                Upload CSV to score
+              </Button>
+            )}
+          </FileButton>
+        </div>
+      )}
+
+      {result && (
+        <div className="panel">
+          <p className="section-label">Export</p>
+          <h2 className="panel-head">Take this rule with you</h2>
+          <Text size="sm" c="dimmed" mb="sm">
+            Download the frozen rule as JSON, or a small Python script that scores CSVs with no
+            dependencies—it keeps working even if this server goes away. You can also archive every
+            surviving rule under your column choices.
           </Text>
           <Group wrap="wrap" className="cta-stack">
+            <Button variant="default" loading={exportBusy} disabled={!jobId} onClick={() => downloadFrozen("json")}>
+              Download rule JSON
+            </Button>
+            <Button
+              variant="default"
+              loading={exportBusy}
+              disabled={!jobId}
+              onClick={() => downloadFrozen("python")}
+            >
+              Download Python scorer
+            </Button>
             <Button variant="light" onClick={() => setRulesOpen(true)} disabled={!leftover.length}>
-              View JSON
+              View surviving rules JSON
             </Button>
             <Button
               variant="default"
               disabled={!leftover.length}
               onClick={() => downloadRashomonTrie(exportFilename, result, leftover, banned, keep)}
             >
-              Download .json
+              Download surviving rules
             </Button>
           </Group>
           <Modal
@@ -208,8 +330,8 @@ export function StepSave({
           <p className="section-label">Impact preview</p>
           <h2 className="panel-head">How this tree decides on your whole file</h2>
           <Text size="sm" c="dimmed" mb="sm">
-            Runs the selected tree on every row you uploaded and counts how often it predicts each class.
-            This is not a fairness audit by itself; it helps you spot skew before you save a policy.
+            Runs the selected tree on every row you uploaded and counts how often it predicts each
+            class. This is not a fairness audit by itself; it helps you spot skew before you export.
           </Text>
           <Text size="sm" c="dimmed" mb="sm">
             {breakdownHint}
@@ -231,11 +353,7 @@ export function StepSave({
             <Button variant="light" onClick={onImpact} loading={busy}>
               Run on full file
             </Button>
-            <Button
-              variant="default"
-              onClick={onResetImpact}
-              disabled={!impact && !impactCol}
-            >
+            <Button variant="default" onClick={onResetImpact} disabled={!impact && !impactCol}>
               Reset preview
             </Button>
           </Group>
@@ -293,44 +411,6 @@ export function StepSave({
           )}
         </div>
       )}
-
-      <div className="panel">
-        <p className="section-label">Keep it</p>
-        <h2 className="panel-head">Save as policy</h2>
-        <Text size="sm" c="dimmed" mb="sm">
-          Locks this exact rule so you can score new rows later from its policy page: same thresholds,
-          same encodings, no new search. Sign in to keep it; guest policies expire with guest data.
-        </Text>
-        <TextInput
-          label="Policy name (optional)"
-          placeholder="e.g. 2026 Q3 small-loan rule"
-          value={polName}
-          onChange={(e) => setPolName(e.currentTarget.value)}
-          w="100%"
-          maw={420}
-        />
-        <Textarea
-          label="Notes (optional)"
-          placeholder="Why these columns were hidden, who approved this, etc."
-          value={polNotes}
-          onChange={(e) => setPolNotes(e.currentTarget.value)}
-          mt="xs"
-          w="100%"
-          maw={640}
-          autosize
-          minRows={2}
-        />
-        <Group mt="md" wrap="wrap" className="cta-stack">
-          <Button onClick={onSave} loading={busy}>
-            Save as policy
-          </Button>
-          {policyId && (
-            <Text size="sm" component="a" href={`/policy/${policyId}`} c="copper" fw={600} style={{ overflowWrap: "anywhere" }}>
-              {`Saved as ${policyId} → open its page`}
-            </Text>
-          )}
-        </Group>
-      </div>
     </Stack>
   );
 }

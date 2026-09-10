@@ -132,6 +132,7 @@ export type Policy = {
     kind: Record<string, string>;
     codes: Record<string, Record<string, number>>;
   };
+  binarizer?: Record<string, unknown>;
 };
 
 export type Me = {

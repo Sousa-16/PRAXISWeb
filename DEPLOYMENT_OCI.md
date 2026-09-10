@@ -161,26 +161,6 @@ Point a domain (or free DuckDNS hostname) to the VM public IP. Install Caddy and
 
 ---
 
-## Part 6 — Supabase auth (optional)
-
-**Vercel** (Config, not Secret):
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-**OCI `api/.env`:**
-
-- `SUPABASE_JWT_SECRET`
-
-Redeploy API after env changes:
-
-```bash
-cd ~/PRAXISWeb
-docker compose -f docker-compose.oci.yml up -d --build
-```
-
----
-
 ## Updating the API
 
 ```bash

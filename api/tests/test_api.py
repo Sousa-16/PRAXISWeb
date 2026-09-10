@@ -92,13 +92,12 @@ def test_remaining_keep():
     assert [t["id"] for t in remaining_trees(JOB["trees"], keep=["region"])] == [1]
 
 
-def test_search_empty_and_miss(client):
-    client.get("/v1/me")
-    empty = client.get("/v1/search")
-    assert empty.status_code == 200
-    assert empty.json() == {"policies": []}
-    miss = client.get("/v1/search", params={"q": "zzzz"})
-    assert miss.json() == {"policies": []}
+def test_me_notice_no_signin(client):
+    res = client.get("/v1/me")
+    assert res.status_code == 200
+    notice = res.json()["notice"]
+    assert "sign in" not in notice.lower()
+    assert "this browser" in notice.lower()
 
 
 def test_fit_params_defaults_and_clamp():

@@ -1,8 +1,7 @@
 "use client";
 
-import { Alert, Button, Group, Text } from "@mantine/core";
+import { Alert, Button, Text } from "@mantine/core";
 import { AppShell } from "@/components/AppShell";
-import { AuthBar } from "@/components/AuthBar";
 import { StepRail } from "@/components/StepRail";
 import { Hero } from "@/components/workshop/Hero";
 import { StepHide } from "@/components/workshop/StepHide";
@@ -17,12 +16,9 @@ export default function HomePage() {
   return (
     <AppShell
       topRight={
-        <Group gap="xs" wrap="wrap">
-          <AuthBar signedIn={Boolean(w.me?.signed_in)} onChange={w.refreshMe} />
-          <Button size="xs" color="red" variant="subtle" onClick={w.wipe}>
-            Delete my data
-          </Button>
-        </Group>
+        <Button size="xs" color="red" variant="subtle" onClick={w.wipe}>
+          Delete my data
+        </Button>
       }
     >
       {!w.dataset && <Hero busy={w.busy} onSample={w.useSample} onUpload={w.onUpload} />}
@@ -120,19 +116,18 @@ export default function HomePage() {
           keep={w.keep}
           jobId={w.job?.id}
           columns={w.columns}
+          row={w.row}
+          setRow={w.setRow}
+          scoreCols={w.required}
+          maxRows={w.me?.max_rows}
           impact={w.impact}
           impactCol={w.impactCol}
           setImpactCol={w.setImpactCol}
           impactClasses={w.impactClasses}
           busy={w.busy}
+          onScore={w.simulate}
           onImpact={w.previewImpact}
           onResetImpact={w.resetImpact}
-          polName={w.polName}
-          setPolName={w.setPolName}
-          polNotes={w.polNotes}
-          setPolNotes={w.setPolNotes}
-          onSave={w.savePolicy}
-          policyId={w.policyId}
         />
       )}
 
@@ -144,8 +139,8 @@ export default function HomePage() {
 
       {w.me && (
         <Text size="xs" c="dimmed" ta="center" mt={48} maw={640} mx="auto">
-          Uploads are tied to this browser (or your account). Guest data expires after{" "}
-          {w.me.guest_ttl_hours ?? 24} hours. Do not upload secrets on the web app.
+          Uploads are tied to this browser. Guest data expires after {w.me.guest_ttl_hours ?? 24}{" "}
+          hours. Do not upload secrets on the web app.
         </Text>
       )}
     </AppShell>

@@ -13,12 +13,10 @@ flowchart TB
     API[FastAPI Docker]
   end
   subgraph supabase [Supabase optional]
-    Auth[Auth]
     PG[Postgres]
   end
   User --> NextApp
   NextApp -->|API_PROXY_TARGET| API
-  User -->|optional sign-in| Auth
   API --> PG
 ```
 
@@ -58,7 +56,6 @@ git push -u origin main
    - **praxis-db** (Postgres)
 5. When prompted, set:
    - `FRONTEND_ORIGIN` → leave blank for now; set after Vercel deploy, e.g. `https://your-app.vercel.app`
-   - `SUPABASE_JWT_SECRET` → leave blank unless using Supabase Auth
 6. Click **Apply**. Wait for deploy (first build ~5–10 min).
 7. Copy the API URL, e.g. `https://praxis-api.onrender.com`.
 8. Test: open `https://praxis-api.onrender.com/health` → `"ok": true`.
@@ -79,7 +76,6 @@ git push -u origin main
 | `DATABASE_URL` | From Render Postgres **Internal** URL, or Supabase pooler URL |
 | `FRONTEND_ORIGIN` | Your Vercel URL (set after step 3) |
 | `COOKIE_SECURE` | `1` |
-| `SUPABASE_JWT_SECRET` | Optional — Supabase JWT secret |
 
 **Note:** Render free tier spins down when idle and has limited RAM. Use **Starter** for demos with real PRAXIS fits.
 
@@ -92,8 +88,6 @@ git push -u origin main
 | Variable | Value |
 |----------|--------|
 | `API_PROXY_TARGET` | `https://praxis-api.onrender.com` (your Render URL, no trailing slash) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Optional |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional |
 
 4. **Deploy**.
 
@@ -115,19 +109,6 @@ git push -u origin main
 | **Supabase Postgres** | Supabase → Database → **Transaction pooler** URI (port 6543) |
 
 Tables are created automatically on API startup (Alembic).
-
----
-
-## Supabase Auth (optional)
-
-Skip entirely for guest-only mode.
-
-1. Supabase → **Project Settings** → **API**:
-   - **Project URL** → Vercel `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public** → Vercel `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - **JWT Secret** → Render `SUPABASE_JWT_SECRET`
-2. Supabase → **Authentication** → **Providers** → enable **Email**.
-3. Redeploy Vercel and Render after setting vars.
 
 ---
 

@@ -5,7 +5,7 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -14,21 +14,19 @@ from sqlmodel import Session
 from app.auth import COOKIE, Identity, read_identity
 from app.config import sample_csv, settings
 from app.db import engine, get_session, init_db
-from app.models import Dataset, Job, Policy
+from app.models import Dataset, Job
 from app.owners import (
     abandon_orphaned_jobs,
     active_job_count,
     attach_guest_to_user,
     get_owned_dataset,
     get_owned_job,
-    get_owned_policy,
     purge_expired,
     stamp_owner,
     wipe_identity,
 )
 from app.policy import freeze_policy, score_job, score_policy, search_blob
 from app.fit_params import fit_params_public_meta, normalize_fit_params
-from app.search import search_owned
 from app.timbertrek_export import build_timbertrek_doc, clamp_export_cap
 
 try:
@@ -64,8 +62,8 @@ app = FastAPI(
     title="PRAXIS Web",
     version="0.2.0",
     description=(
-        "Policy workshop API. PRAXIS enumerates near-optimal trees; this service "
-        "did not author that enumerator. Fit is a job. Score walks frozen JSON. "
+        "Workshop API. PRAXIS enumerates near-optimal trees; this service "
+        "did not author that enumerator. Fit is a job. Score walks a frozen rule. "
         "Next.js on Vercel should call this Python host; do not run PRAXIS on Vercel."
     ),
     lifespan=lifespan,
@@ -128,17 +126,10 @@ class ScoreBody(BaseModel):
     keep: list[str] = Field(default_factory=list)
 
 
-class PolicyCreate(BaseModel):
-    job_id: str
-    tree_id: int
+class FreezeBody(BaseModel):
+    tree_id: int = 0
     banned: list[str] = Field(default_factory=list)
     keep: list[str] = Field(default_factory=list)
-    name: str = ""
-    notes: str = ""
-
-
-class PolicyScoreBody(BaseModel):
-    row: dict[str, Any] = Field(default_factory=dict)
 
 
 class ImpactBody(BaseModel):
@@ -146,6 +137,28 @@ class ImpactBody(BaseModel):
     banned: list[str] = Field(default_factory=list)
     keep: list[str] = Field(default_factory=list)
     group_by: str = ""
+
+
+def _succeeded_job_result(session: Session, ident: Identity, job_id: str) -> tuple[Job, dict[str, Any]]:
+    job = get_owned_job(session, ident, job_id)
+    if job is None:
+        raise HTTPException(404, "Unknown job.")
+    if job.status != "succeeded" or not job.result_json:
+        raise HTTPException(409, "Job has not finished compiling.")
+    result = json.loads(job.result_json)
+    if not result.get("trees"):
+        raise HTTPException(409, "Profile matching trees after choosing columns first.")
+    return job, result
+
+
+def _parse_str_list(raw: str, field: str) -> list[str]:
+    try:
+        data = json.loads(raw or "[]")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(400, f"Invalid {field} JSON.") from exc
+    if not isinstance(data, list) or not all(isinstance(x, str) for x in data):
+        raise HTTPException(400, f"{field} must be a JSON array of strings.")
+    return data
 
 
 class ProfileBody(BaseModel):
@@ -232,10 +245,10 @@ def me(ident: Identity = Depends(identity_dep)):
         "max_upload_bytes": settings.max_upload_bytes,
         "fit_params": fit_params_public_meta(),
         "notice": (
-            "Other visitors cannot open your uploads. They are tied to this browser"
-            " (or your account if you sign in). Guest data is deleted after "
-            f"{settings.guest_ttl_hours} hours. The server and data host can still "
-            "access stored rows. Do not upload secrets on the web app. "
+            "Other visitors cannot open your uploads. They are tied to this browser. "
+            f"Guest data is deleted after {settings.guest_ttl_hours} hours. "
+            "The server and data host can still access stored rows. "
+            "Do not upload secrets on the web app. "
             "Instead download PRAXIS Web locally."
         ),
     }
@@ -536,15 +549,63 @@ def score_from_job(
     session: Session = Depends(get_session),
     ident: Identity = Depends(identity_dep),
 ):
-    job = get_owned_job(session, ident, job_id)
-    if job is None:
-        raise HTTPException(404, "Unknown job.")
-    if job.status != "succeeded" or not job.result_json:
-        raise HTTPException(409, "Job has not finished compiling.")
-    result = json.loads(job.result_json)
-    if not result.get("trees"):
-        raise HTTPException(409, "Profile matching trees after choosing columns first.")
+    _, result = _succeeded_job_result(session, ident, job_id)
     return score_job(result, body.row, body.tree_id, body.banned, body.keep)
+
+
+@app.post("/v1/jobs/{job_id}/freeze")
+def freeze_from_job(
+    job_id: str,
+    body: FreezeBody,
+    session: Session = Depends(get_session),
+    ident: Identity = Depends(identity_dep),
+):
+    """Return a frozen rule JSON for download / offline scoring (not persisted)."""
+    _, result = _succeeded_job_result(session, ident, job_id)
+    return freeze_policy(result, body.tree_id, body.banned, body.keep)
+
+
+@app.post("/v1/jobs/{job_id}/score_batch")
+async def score_job_batch(
+    job_id: str,
+    file: UploadFile = File(...),
+    tree_id: int = Form(0),
+    banned: str = Form("[]"),
+    keep: str = Form("[]"),
+    session: Session = Depends(get_session),
+    ident: Identity = Depends(identity_dep),
+):
+    """Score every row of an uploaded CSV; return the CSV with decision columns added."""
+    _, result = _succeeded_job_result(session, ident, job_id)
+    policy = freeze_policy(result, tree_id, _parse_str_list(banned, "banned"), _parse_str_list(keep, "keep"))
+    raw = await file.read()
+    if len(raw) > settings.max_upload_bytes:
+        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
+        raise HTTPException(413, f"File is too large ({mb} MB max).")
+    from app.tables import read_csv
+
+    df = read_csv(raw)
+    if len(df) > settings.max_rows:
+        raise HTTPException(400, f"This demo scores at most {settings.max_rows} rows at once.")
+    cols = policy["maps"]["columns"]
+    preds: list[str] = []
+    agrees: list[str] = []
+    reasons: list[str] = []
+    for rec in df.to_dict(orient="records"):
+        vals = {c: "" if rec.get(c) is None else str(rec.get(c)) for c in cols}
+        out = score_policy(policy, vals)
+        preds.append(out["prediction"])
+        agrees.append(f"{out['agree']}/{out['n']}")
+        reasons.append("; ".join(out.get("reason") or []))
+    scored = df.copy()
+    scored["prediction"] = preds
+    scored["rules_agree"] = agrees
+    scored["reason"] = reasons
+    return Response(
+        content=scored.to_csv(index=False),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="scored_{job_id}.csv"'},
+    )
 
 
 @app.post("/v1/jobs/{job_id}/impact")
@@ -555,14 +616,7 @@ def preview_impact(
     ident: Identity = Depends(identity_dep),
 ):
     """Run the chosen rule over the original file: prediction rates overall and per group."""
-    job = get_owned_job(session, ident, job_id)
-    if job is None:
-        raise HTTPException(404, "Unknown job.")
-    if job.status != "succeeded" or not job.result_json:
-        raise HTTPException(409, "Job has not finished compiling.")
-    result = json.loads(job.result_json)
-    if not result.get("trees"):
-        raise HTTPException(409, "Profile matching trees after choosing columns first.")
+    job, result = _succeeded_job_result(session, ident, job_id)
     policy = freeze_policy(result, body.tree_id, body.banned, body.keep)
     # Agreement across the ensemble is not needed here; score the single tree.
     policy["ensemble"] = [policy["tree"]]
@@ -595,109 +649,4 @@ def preview_impact(
             for value, counts in sorted(groups.items())
         ],
     }
-
-
-@app.post("/v1/policies", status_code=201)
-def create_policy(
-    body: PolicyCreate,
-    session: Session = Depends(get_session),
-    ident: Identity = Depends(identity_dep),
-):
-    job = get_owned_job(session, ident, body.job_id)
-    if job is None:
-        raise HTTPException(404, "Unknown job.")
-    if job.status != "succeeded" or not job.result_json:
-        raise HTTPException(409, "Job has not finished compiling.")
-    result = json.loads(job.result_json)
-    if not result.get("trees"):
-        raise HTTPException(409, "Profile matching trees after choosing columns first.")
-    policy = freeze_policy(result, body.tree_id, body.banned, body.keep)
-    pid = secrets.token_hex(6)
-    policy["id"] = pid
-    name = body.name.strip()[:120]
-    notes = body.notes.strip()[:2000]
-    if name:
-        policy["name"] = name
-    if notes:
-        policy["notes"] = notes
-    row = Policy(
-        id=pid,
-        job_id=job.id,
-        tree_id=int(body.tree_id),
-        constraints_json=json.dumps({"banned": body.banned, "keep": body.keep}),
-        policy_json=json.dumps(policy),
-        search_document=" ".join(filter(None, [search_blob(result, policy), name, notes])),
-        **stamp_owner(ident),
-    )
-    session.add(row)
-    session.commit()
-    return policy
-
-
-@app.get("/v1/policies/{policy_id}")
-def get_policy(policy_id: str, session: Session = Depends(get_session), ident: Identity = Depends(identity_dep)):
-    row = get_owned_policy(session, ident, policy_id)
-    if row is None:
-        raise HTTPException(404, "Unknown policy.")
-    return json.loads(row.policy_json)
-
-
-@app.post("/v1/policies/{policy_id}/score")
-def score_saved(
-    policy_id: str,
-    body: PolicyScoreBody,
-    session: Session = Depends(get_session),
-    ident: Identity = Depends(identity_dep),
-):
-    row = get_owned_policy(session, ident, policy_id)
-    if row is None:
-        raise HTTPException(404, "Unknown policy.")
-    return score_policy(json.loads(row.policy_json), body.row)
-
-
-@app.post("/v1/policies/{policy_id}/score_batch")
-async def score_saved_batch(
-    policy_id: str,
-    file: UploadFile = File(...),
-    session: Session = Depends(get_session),
-    ident: Identity = Depends(identity_dep),
-):
-    """Score every row of an uploaded CSV; return the CSV with decision columns added."""
-    stored = get_owned_policy(session, ident, policy_id)
-    if stored is None:
-        raise HTTPException(404, "Unknown policy.")
-    policy = json.loads(stored.policy_json)
-    raw = await file.read()
-    if len(raw) > settings.max_upload_bytes:
-        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
-        raise HTTPException(413, f"File is too large ({mb} MB max).")
-    from app.tables import read_csv
-
-    df = read_csv(raw)
-    if len(df) > settings.max_rows:
-        raise HTTPException(400, f"This demo scores at most {settings.max_rows} rows at once.")
-    cols = policy["maps"]["columns"]
-    preds: list[str] = []
-    agrees: list[str] = []
-    reasons: list[str] = []
-    for rec in df.to_dict(orient="records"):
-        vals = {c: "" if rec.get(c) is None else str(rec.get(c)) for c in cols}
-        out = score_policy(policy, vals)
-        preds.append(out["prediction"])
-        agrees.append(f"{out['agree']}/{out['n']}")
-        reasons.append("; ".join(out.get("reason") or []))
-    scored = df.copy()
-    scored["prediction"] = preds
-    scored["rules_agree"] = agrees
-    scored["reason"] = reasons
-    return Response(
-        content=scored.to_csv(index=False),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="scored_{policy_id}.csv"'},
-    )
-
-
-@app.get("/v1/search")
-def search(q: str = "", session: Session = Depends(get_session), ident: Identity = Depends(identity_dep)):
-    return search_owned(session, ident, q)
 
