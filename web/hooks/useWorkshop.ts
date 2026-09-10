@@ -323,7 +323,6 @@ export function useWorkshop() {
     try {
       const out = await praxisWeb.scoreJob(job.id, { row, tree_id: selected.id, banned, keep });
       setScore(out);
-      setStep(3);
     } catch (err) {
       notifications.show({ title: "Could not score this row", message: String(err), color: "red" });
     } finally {

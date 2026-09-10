@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
+from app import bases_store, fit_cache
 from app.auth import Identity
 from app.config import settings
-from app.models import Dataset, Job, Policy
+from app.models import Dataset, Job
 
 # Jobs queued/running before this process started have no worker (API restart).
 PROCESS_BOOTED_AT = datetime.now(timezone.utc)
@@ -21,20 +21,14 @@ def guest_deadline() -> datetime | None:
 
 
 def stamp_owner(ident: Identity) -> dict:
-    deadline = None if ident.user_id else guest_deadline()
     return {
         "session_id": ident.session_id,
-        "user_id": ident.user_id,
-        "delete_after": deadline,
+        "user_id": None,
+        "delete_after": guest_deadline(),
     }
 
 
 def owner_clause(model, ident: Identity):
-    if ident.user_id:
-        return or_(
-            col(model.user_id) == ident.user_id,
-            (col(model.user_id).is_(None)) & (col(model.session_id) == ident.session_id),
-        )
     return (col(model.user_id).is_(None)) & (col(model.session_id) == ident.session_id)
 
 
@@ -46,12 +40,6 @@ def get_owned_dataset(session: Session, ident: Identity, dataset_id: str) -> Dat
 
 def get_owned_job(session: Session, ident: Identity, job_id: str) -> Job | None:
     return session.exec(select(Job).where(Job.id == job_id).where(owner_clause(Job, ident))).first()
-
-
-def get_owned_policy(session: Session, ident: Identity, policy_id: str) -> Policy | None:
-    return session.exec(
-        select(Policy).where(Policy.id == policy_id).where(owner_clause(Policy, ident))
-    ).first()
 
 
 def active_job_count(session: Session, ident: Identity) -> int:
@@ -67,6 +55,14 @@ def _aware(dt: datetime | None) -> datetime | None:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def _drop_job_caches(job_id: str) -> None:
+    try:
+        bases_store.drop(job_id)
+    except Exception:
+        pass
+    fit_cache.pop(job_id)
 
 
 def abandon_orphaned_jobs(session: Session) -> int:
@@ -91,38 +87,30 @@ def abandon_orphaned_jobs(session: Session) -> int:
 def purge_expired(session: Session) -> int:
     now = datetime.now(timezone.utc)
     n = 0
-    for model in (Policy, Job, Dataset):
-        rows = session.exec(
-            select(model).where(col(model.delete_after).is_not(None)).where(col(model.delete_after) < now)
-        ).all()
-        for row in rows:
-            session.delete(row)
-            n += 1
+    jobs = session.exec(
+        select(Job).where(col(Job.delete_after).is_not(None)).where(col(Job.delete_after) < now)
+    ).all()
+    for job in jobs:
+        _drop_job_caches(job.id)
+        session.delete(job)
+        n += 1
+    datasets = session.exec(
+        select(Dataset).where(col(Dataset.delete_after).is_not(None)).where(col(Dataset.delete_after) < now)
+    ).all()
+    for row in datasets:
+        session.delete(row)
+        n += 1
     if n:
         session.commit()
     return n
 
 
 def wipe_identity(session: Session, ident: Identity) -> None:
-    for model in (Policy, Job, Dataset):
-        rows = session.exec(select(model).where(owner_clause(model, ident))).all()
-        for row in rows:
-            session.delete(row)
+    jobs = session.exec(select(Job).where(owner_clause(Job, ident))).all()
+    for job in jobs:
+        _drop_job_caches(job.id)
+        session.delete(job)
+    datasets = session.exec(select(Dataset).where(owner_clause(Dataset, ident))).all()
+    for row in datasets:
+        session.delete(row)
     session.commit()
-
-
-def attach_guest_to_user(session: Session, ident: Identity) -> int:
-    if not ident.user_id:
-        return 0
-    n = 0
-    for model in (Dataset, Job, Policy):
-        rows = session.exec(
-            select(model).where(col(model.session_id) == ident.session_id).where(col(model.user_id).is_(None))
-        ).all()
-        for row in rows:
-            row.user_id = ident.user_id
-            row.delete_after = None
-            session.add(row)
-            n += 1
-    session.commit()
-    return n

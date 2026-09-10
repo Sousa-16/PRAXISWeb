@@ -11,7 +11,6 @@ import {
   SimpleGrid,
   Stack,
   Text,
-  TextInput,
 } from "@mantine/core";
 import { PAGE_SIZE } from "@/lib/constants";
 import { TreeFlow } from "@/components/TreeFlow";
@@ -33,11 +32,7 @@ type Props = {
   toggleCompare: (id: number) => void;
   setCompare: (ids: number[]) => void;
   setTreeId: (id: number) => void;
-  row: Record<string, string>;
-  setRow: (fn: (r: Record<string, string>) => Record<string, string>) => void;
-  required: string[];
   busy: boolean;
-  onScore: () => void;
   onContinue: () => void;
   banned: string[];
   keep: string[];
@@ -59,11 +54,7 @@ export function StepTry({
   toggleCompare,
   setCompare,
   setTreeId,
-  row,
-  setRow,
-  required,
   busy,
-  onScore,
   onContinue,
   banned,
   keep,
@@ -124,7 +115,7 @@ export function StepTry({
           Browse Trees
         </h2>
         <Text size="sm" c="dimmed" mt={4}>
-          Click a tree to select it. Compare a few if you want; trying a single row afterward is optional.
+          Click a tree to select it. Compare a few if you want, then continue to score &amp; export.
         </Text>
       </div>
 
@@ -322,54 +313,9 @@ export function StepTry({
         )}
       </Modal>
 
-      <div className="panel">
-        <p className="section-label">Optional</p>
-        <h2 className="panel-head">Try this tree on one row</h2>
-        <Text size="sm" c="dimmed" mt={4}>
-          Fill in values for a single case to see what this tree predicts and which branch it took. You can
-          skip this and go straight to score &amp; export.
-        </Text>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
-          {required.map((col) => {
-            const kind = result.column_kinds[col];
-            const codes = result.column_codes?.[col];
-            if (codes) {
-              return (
-                <Select
-                  key={col}
-                  label={col}
-                  data={Object.keys(codes)}
-                  value={row[col] || null}
-                  onChange={(v) => setRow((r) => ({ ...r, [col]: v || "" }))}
-                />
-              );
-            }
-            return (
-              <TextInput
-                key={col}
-                label={col}
-                placeholder={kind === "binary" ? "yes / no" : "number"}
-                value={row[col] || ""}
-                onChange={(e) => {
-                  const value = e.currentTarget?.value ?? (e.target as HTMLInputElement).value ?? "";
-                  setRow((r) => ({ ...r, [col]: value }));
-                }}
-              />
-            );
-          })}
-        </SimpleGrid>
-        <Group mt="md" wrap="wrap" className="cta-stack">
-          <Button
-            onClick={onScore}
-            loading={busy}
-            disabled={required.some((c) => !row[c])}
-            variant="light"
-          >
-            Try this row
-          </Button>
-          <Button onClick={onContinue}>Continue to score &amp; export</Button>
-        </Group>
-      </div>
+      <Group mt="md" wrap="wrap" className="cta-stack">
+        <Button onClick={onContinue}>Continue to score &amp; export</Button>
+      </Group>
     </Stack>
   );
 }

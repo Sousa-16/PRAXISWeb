@@ -23,8 +23,6 @@ services:
         fromDatabase:
           name: praxis-db
           property: connectionString
-      - key: SUPABASE_JWT_SECRET
-        sync: false
 
 databases:
   - name: praxis-db

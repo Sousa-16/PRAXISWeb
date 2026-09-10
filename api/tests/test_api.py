@@ -95,9 +95,96 @@ def test_remaining_keep():
 def test_me_notice_no_signin(client):
     res = client.get("/v1/me")
     assert res.status_code == 200
-    notice = res.json()["notice"]
+    body = res.json()
+    notice = body["notice"]
     assert "sign in" not in notice.lower()
     assert "this browser" in notice.lower()
+    assert "signed_in" not in body
+
+
+def test_health_has_no_auth_flag(client):
+    res = client.get("/health")
+    assert res.status_code == 200
+    assert "auth" not in res.json()
+
+
+def test_auth_attach_removed(client):
+    res = client.post("/v1/auth/attach")
+    assert res.status_code == 404
+
+
+def test_freeze_and_score_batch_from_job(client):
+    import json
+
+    from app.db import engine
+    from app.models import Job
+    from sqlmodel import Session
+
+    client.get("/v1/me")
+    created = client.post("/v1/datasets/sample")
+    assert created.status_code == 201
+    did = created.json()["id"]
+    job_res = client.post("/v1/jobs", json={"dataset_id": did, "label": "class"})
+    assert job_res.status_code == 202
+    jid = job_res.json()["id"]
+    with Session(engine) as session:
+        job = session.get(Job, jid)
+        assert job is not None
+        job.status = "succeeded"
+        job.result_json = json.dumps(JOB)
+        session.add(job)
+        session.commit()
+
+    freeze = client.post(
+        f"/v1/jobs/{jid}/freeze",
+        json={"tree_id": 0, "banned": [], "keep": []},
+    )
+    assert freeze.status_code == 200
+    body = freeze.json()
+    assert body["tree"]["id"] == 0
+    assert "binarizer" in body
+
+    csv_bytes = b"income,region\n42000,south\n50000,west\n"
+    batch = client.post(
+        f"/v1/jobs/{jid}/score_batch",
+        data={"tree_id": "0", "banned": "[]", "keep": "[]"},
+        files={"file": ("rows.csv", csv_bytes, "text/csv")},
+    )
+    assert batch.status_code == 200
+    text = batch.text
+    assert "prediction" in text
+    assert "rules_agree" in text
+
+
+def test_wipe_drops_bases_cache(client, tmp_path, monkeypatch):
+    import json
+
+    import numpy as np
+    from sqlmodel import Session
+
+    from app import bases_store
+    from app.config import settings
+    from app.db import engine
+    from app.models import Job
+
+    monkeypatch.setattr(settings, "bases_cache_dir", str(tmp_path))
+    client.get("/v1/me")
+    created = client.post("/v1/datasets/sample")
+    did = created.json()["id"]
+    job_res = client.post("/v1/jobs", json={"dataset_id": did, "label": "class"})
+    jid = job_res.json()["id"]
+    bases_store.save(jid, {"income": 0}, np.zeros((1, 1), dtype=np.uint64))
+    assert (tmp_path / f"{jid}.npz").is_file()
+    with Session(engine) as session:
+        job = session.get(Job, jid)
+        assert job is not None
+        job.status = "succeeded"
+        job.result_json = json.dumps(JOB)
+        session.add(job)
+        session.commit()
+    wiped = client.delete("/v1/me/data")
+    assert wiped.status_code == 200
+    assert not (tmp_path / f"{jid}.npz").is_file()
 
 
 def test_fit_params_defaults_and_clamp():

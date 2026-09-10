@@ -22,13 +22,12 @@ export function Hero({ busy, onSample, onUpload }: Props) {
           PRAXIS <span>Web</span>
         </h1>
         <p className="hero-line rise rise-1">
-          Fast, memory-efficient, and transparent AI Decision Automation tailored to your exact
-          business constraints.
+          Find short, readable if-then rules from your table—and score new rows with the rule you
+          choose.
         </p>
         <p className="hero-sub rise rise-2">
-          Powered by PRAXIS: an innovative algorithm achieving orders-of-magnitude improvements in
-          both runtime and memory efficiency compared to state-of-the-art methods, without
-          sacrificing interpretability.
+          Powered by PRAXIS, which searches a set of near-best decision trees so you can compare
+          options under your column constraints.
         </p>
         <div className="hero-ctas rise rise-3">
           <Button size="lg" fullWidth onClick={onSample} loading={busy}>
@@ -139,8 +138,8 @@ export function Hero({ busy, onSample, onUpload }: Props) {
             update live, with the accuracy trade-off shown.
           </li>
           <li>
-            <strong>Browse Trees</strong>: choose among surviving trees; optionally try one row,
-            or skip straight to score &amp; export.
+            <strong>Browse Trees</strong>: choose among surviving trees, then continue to score and
+            export.
           </li>
           <li>
             <strong>Score &amp; export</strong>: score new rows or a CSV, preview impact, and download

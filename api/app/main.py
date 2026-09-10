@@ -18,7 +18,6 @@ from app.models import Dataset, Job
 from app.owners import (
     abandon_orphaned_jobs,
     active_job_count,
-    attach_guest_to_user,
     get_owned_dataset,
     get_owned_job,
     purge_expired,
@@ -27,6 +26,7 @@ from app.owners import (
 )
 from app.policy import freeze_policy, score_job, score_policy, search_blob
 from app.fit_params import fit_params_public_meta, normalize_fit_params
+from app.rate_limit import check_rate
 from app.timbertrek_export import build_timbertrek_doc, clamp_export_cap
 
 try:
@@ -78,6 +78,11 @@ app.add_middleware(
 )
 
 
+def _cookie_max_age() -> int:
+    hours = max(1, int(settings.guest_ttl_hours or 24))
+    return hours * 3600
+
+
 @app.middleware("http")
 async def session_and_purge(request: Request, call_next):
     ident = read_identity(request)
@@ -90,7 +95,7 @@ async def session_and_purge(request: Request, call_next):
             httponly=True,
             samesite="lax",
             secure=settings.cookie_secure,
-            max_age=30 * 24 * 3600,
+            max_age=_cookie_max_age(),
             path="/",
         )
     return response
@@ -108,7 +113,7 @@ def set_cookie(response: Response, ident: Identity) -> None:
             httponly=True,
             samesite="lax",
             secure=settings.cookie_secure,
-            max_age=30 * 24 * 3600,
+            max_age=_cookie_max_age(),
             path="/",
         )
 
@@ -222,7 +227,6 @@ def health():
     ready = db_ok and storage_ok and (redis_status is not False)
     return {
         "ok": ready,
-        "auth": bool(settings.supabase_jwt_secret),
         "database": db_ok,
         "storage": storage_ok,
         "storage_backend": "s3" if settings.uses_s3_storage() else "local",
@@ -239,8 +243,7 @@ def health():
 def me(ident: Identity = Depends(identity_dep)):
     return {
         "session_id": ident.session_id[:6] + "…",
-        "signed_in": bool(ident.user_id),
-        "guest_ttl_hours": None if ident.user_id else settings.guest_ttl_hours,
+        "guest_ttl_hours": settings.guest_ttl_hours,
         "max_rows": settings.max_rows,
         "max_upload_bytes": settings.max_upload_bytes,
         "fit_params": fit_params_public_meta(),
@@ -254,14 +257,6 @@ def me(ident: Identity = Depends(identity_dep)):
     }
 
 
-@app.post("/v1/auth/attach")
-def attach(session: Session = Depends(get_session), ident: Identity = Depends(identity_dep)):
-    if not ident.user_id:
-        raise HTTPException(401, "Sign in first.")
-    n = attach_guest_to_user(session, ident)
-    return {"attached": n}
-
-
 @app.delete("/v1/me/data")
 def delete_mine(session: Session = Depends(get_session), ident: Identity = Depends(identity_dep)):
     wipe_identity(session, ident)
@@ -270,6 +265,7 @@ def delete_mine(session: Session = Depends(get_session), ident: Identity = Depen
 
 def _store_dataset(session: Session, ident: Identity, filename: str, raw: bytes) -> dict:
     purge_expired(session)
+    check_rate(ident.session_id, "upload", limit=8, window_s=60.0)
     if len(raw) > settings.max_upload_bytes:
         mb = max(1, settings.max_upload_bytes // (1024 * 1024))
         raise HTTPException(413, f"File is too large ({mb} MB max).")
@@ -313,6 +309,7 @@ def create_job(
 ):
     purge_expired(session)
     abandon_orphaned_jobs(session)
+    check_rate(ident.session_id, "create_job", limit=6, window_s=120.0)
     if active_job_count(session, ident) >= settings.max_active_jobs:
         raise HTTPException(429, "A search is already running for you. Wait for it to finish.")
     ds = get_owned_dataset(session, ident, body.dataset_id)

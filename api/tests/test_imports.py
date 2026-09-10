@@ -16,13 +16,17 @@ def _imports(name: str) -> set[str]:
 
 
 def test_serve_modules_do_not_import_praxis():
-    for mod in ("policy.py", "encode.py", "constraints.py", "owners.py", "search.py", "models.py"):
+    for mod in ("policy.py", "encode.py", "constraints.py", "owners.py", "models.py", "rate_limit.py"):
         assert "praxis" not in _imports(mod), mod
 
 
 def test_tables_and_main_do_not_import_praxis():
     for mod in ("tables.py", "main.py", "auth.py", "db.py", "fit_cache.py"):
         assert "praxis" not in _imports(mod), mod
+
+
+def test_search_module_removed():
+    assert not (PKG / "search.py").exists(), "Unused search.py should stay deleted"
 
 
 def test_routers_directory_removed():

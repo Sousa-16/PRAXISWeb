@@ -6,7 +6,7 @@ import { StepRail } from "@/components/StepRail";
 import { Hero } from "@/components/workshop/Hero";
 import { StepHide } from "@/components/workshop/StepHide";
 import { StepLoad } from "@/components/workshop/StepLoad";
-import { StepSave } from "@/components/workshop/StepSave";
+import { StepScore } from "@/components/workshop/StepScore";
 import { StepTry } from "@/components/workshop/StepTry";
 import { useWorkshop } from "@/hooks/useWorkshop";
 
@@ -70,7 +70,6 @@ export default function HomePage() {
           onHideAll={() => {
             w.setBanned(w.columns);
             w.setKeep([]);
-            // Optimistic: banning every original column leaves only featureless trees (usually 0).
             w.setMatchCount(0);
             w.setMatchCounting(true);
           }}
@@ -94,11 +93,7 @@ export default function HomePage() {
           toggleCompare={w.toggleCompare}
           setCompare={w.setCompare}
           setTreeId={w.setTreeId}
-          row={w.row}
-          setRow={w.setRow}
-          required={w.required}
           busy={w.busy}
-          onScore={w.simulate}
           onContinue={w.continueToSave}
           banned={w.banned}
           keep={w.keep}
@@ -107,7 +102,7 @@ export default function HomePage() {
       )}
 
       {w.step === 3 && w.selected && (
-        <StepSave
+        <StepScore
           selected={w.selected}
           score={w.score}
           result={w.result}

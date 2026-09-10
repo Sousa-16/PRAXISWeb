@@ -6,7 +6,7 @@ from alembic import context
 from sqlmodel import SQLModel
 
 from app.config import settings
-from app.models import Dataset, Job, Policy  # noqa: F401
+from app.models import Dataset, Job  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

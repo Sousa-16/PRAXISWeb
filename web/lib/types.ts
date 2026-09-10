@@ -137,7 +137,6 @@ export type Policy = {
 
 export type Me = {
   session_id: string;
-  signed_in: boolean;
   guest_ttl_hours: number | null;
   max_rows: number;
   max_upload_bytes: number;

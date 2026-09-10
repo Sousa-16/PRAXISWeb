@@ -46,7 +46,7 @@ type Props = {
   onResetImpact: () => void;
 };
 
-export function StepSave({
+export function StepScore({
   selected,
   score,
   result,

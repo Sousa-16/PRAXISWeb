@@ -40,18 +40,3 @@ class Job(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow, index=True)
     finished_at: Optional[datetime] = None
     delete_after: Optional[datetime] = Field(default=None, index=True)
-
-
-class Policy(SQLModel, table=True):
-    __tablename__ = "policies"
-
-    id: str = Field(primary_key=True)
-    job_id: str = Field(index=True)
-    tree_id: int
-    constraints_json: str = Field(sa_column=Column(Text, nullable=False))
-    policy_json: str = Field(sa_column=Column(Text, nullable=False))
-    search_document: str = Field(default="", sa_column=Column(Text, nullable=False))
-    session_id: Optional[str] = Field(default=None, index=True)
-    user_id: Optional[str] = Field(default=None, index=True)
-    created_at: datetime = Field(default_factory=utcnow, index=True)
-    delete_after: Optional[datetime] = Field(default=None, index=True)

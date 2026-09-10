@@ -14,8 +14,6 @@ def _bool(name: str, default: bool = False) -> bool:
 class Settings:
     database_url: str = os.environ.get("DATABASE_URL", "sqlite:///./praxis_web.db")
     frontend_origin: str = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
-    supabase_jwt_secret: str = os.environ.get("SUPABASE_JWT_SECRET", "").strip()
-    supabase_url: str = os.environ.get("SUPABASE_URL", "").strip()
     sentry_dsn: str = os.environ.get("SENTRY_DSN", "").strip()
     cookie_secure: bool = _bool("COOKIE_SECURE", False)
     guest_ttl_hours: int = int(os.environ.get("GUEST_TTL_HOURS", "24"))

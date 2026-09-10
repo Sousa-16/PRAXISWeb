@@ -1,6 +1,6 @@
 # Fly.io deployment for the PRAXIS Web API.
 # Create app: fly launch --no-deploy --config WebApp/api/fly.toml
-# Set secrets: fly secrets set DATABASE_URL=... SUPABASE_JWT_SECRET=... FRONTEND_ORIGIN=...
+# Set secrets: fly secrets set DATABASE_URL=... FRONTEND_ORIGIN=...
 
 app = "praxis-web-api"
 primary_region = "iad"

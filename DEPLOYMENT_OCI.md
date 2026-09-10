@@ -1,6 +1,6 @@
 # Deploy on Oracle Cloud (OCI) — $0 Always Free
 
-Stack: **Vercel** (frontend) + **OCI Ampere VM** (API) + **Supabase** (free Postgres + optional auth).
+Stack: **Vercel** (frontend) + **OCI Ampere VM** (API) + **Supabase** (free Postgres).
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,6 @@ flowchart LR
 | API | OCI Always Free VM | Free |
 | HTTPS to API | Cloudflare Tunnel (recommended) | Free |
 | Database | Supabase Postgres | Free tier |
-| Auth | Supabase (optional) | Free tier |
 
 ---
 
@@ -97,9 +96,6 @@ DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supaba
 FRONTEND_ORIGIN=https://praxis-web-nu.vercel.app
 COOKIE_SECURE=1
 
-# Optional auth (Supabase → Settings → API → JWT Secret)
-SUPABASE_JWT_SECRET=your-jwt-secret
-
 BASES_CACHE_DIR=data/bases_cache
 ```
 
@@ -140,9 +136,15 @@ cloudflared tunnel --url http://127.0.0.1:8765
 ```
 
 Copy the `https://….trycloudflare.com` URL.  
-**Note:** Quick tunnels change URL on restart. For a stable URL, create a [named Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
+**Note:** Quick tunnels change URL on restart. Prefer **[Option A2 — named tunnel](ops/NAMED_TUNNEL.md)** for production.
+
+### Option A2 — Named Cloudflare tunnel (stable URL)
+
+See **[ops/NAMED_TUNNEL.md](ops/NAMED_TUNNEL.md)** and `ops/cloudflared-praxis-api.service`.
+Creates a fixed hostname you can set once in Vercel `API_PROXY_TARGET`.
 
 ### Option B — Caddy + domain
+
 
 Point a domain (or free DuckDNS hostname) to the VM public IP. Install Caddy and reverse-proxy to `localhost:8765`. Caddy obtains Let's Encrypt certs automatically.
 
@@ -179,7 +181,7 @@ docker compose -f docker-compose.oci.yml up -d --build
 | CORS / cookie errors | `FRONTEND_ORIGIN` must exactly match Vercel URL |
 | `/health` `database: false` | Check `DATABASE_URL`; open Supabase pooler access |
 | PRAXIS fit OOM | Use Ampere 12 GB shape, not 1 GB AMD micro |
-| Sign-in UI but API rejects login | Set `SUPABASE_JWT_SECRET` on API |
+| Tunnel URL changed | Switch to a [named tunnel](ops/NAMED_TUNNEL.md); update Vercel `API_PROXY_TARGET` |
 
 ---
 
