@@ -16,7 +16,11 @@ from app.policy import freeze_policy, score_policy
 def test_health(client):
     res = client.get("/health")
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    body = res.json()
+    assert body["ok"] is True
+    assert body["job_queue"] == "thread"
+    assert "redis" not in body
+    assert "auth" not in body
 
 
 def test_sample_dataset_and_isolation(client):
@@ -375,3 +379,18 @@ def test_abandon_orphaned_jobs_from_prior_process():
         assert stuck.status == "failed"
         session.delete(stuck)
         session.commit()
+
+
+def test_fit_cache_reload_from_disk(tmp_path, monkeypatch):
+    from app import fit_cache
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "bases_cache_dir", str(tmp_path))
+    fit_cache.clear()
+    fit_cache.put("jobpkl", {"n_trees": 3, "ok": True})
+    fit_cache.clear()
+    loaded = fit_cache.get("jobpkl")
+    assert loaded == {"n_trees": 3, "ok": True}
+    fit_cache.pop("jobpkl")
+    assert fit_cache.get("jobpkl") is None
+    assert not (tmp_path / "jobpkl.bundle.pkl").exists()

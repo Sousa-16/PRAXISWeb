@@ -23,13 +23,12 @@ def guest_deadline() -> datetime | None:
 def stamp_owner(ident: Identity) -> dict:
     return {
         "session_id": ident.session_id,
-        "user_id": None,
         "delete_after": guest_deadline(),
     }
 
 
 def owner_clause(model, ident: Identity):
-    return (col(model.user_id).is_(None)) & (col(model.session_id) == ident.session_id)
+    return col(model.session_id) == ident.session_id
 
 
 def get_owned_dataset(session: Session, ident: Identity, dataset_id: str) -> Dataset | None:

@@ -44,10 +44,10 @@ const theme = createTheme({
   primaryColor: "copper",
   primaryShade: { light: 6, dark: 4 },
   colors: { copper, sea },
-  fontFamily: '"Plus Jakarta Sans", sans-serif',
-  fontFamilyMonospace: '"JetBrains Mono", ui-monospace, monospace',
+  fontFamily: "var(--font-body)",
+  fontFamilyMonospace: "var(--font-mono)",
   headings: {
-    fontFamily: '"Syne", sans-serif',
+    fontFamily: "var(--font-brand)",
     fontWeight: "700",
   },
   defaultRadius: "md",

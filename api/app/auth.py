@@ -13,7 +13,6 @@ COOKIE = "praxis_web_sid"
 @dataclass
 class Identity:
     session_id: str
-    user_id: str | None = None
     new_cookie: bool = False
 
 
@@ -23,4 +22,4 @@ def read_identity(request: Request) -> Identity:
     if not raw:
         raw = secrets.token_urlsafe(24)
         new_cookie = True
-    return Identity(session_id=raw, user_id=None, new_cookie=new_cookie)
+    return Identity(session_id=raw, new_cookie=new_cookie)

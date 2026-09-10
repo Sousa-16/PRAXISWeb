@@ -20,7 +20,6 @@ class Dataset(SQLModel, table=True):
     csv_bytes: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     preview_json: str = Field(sa_column=Column(Text, nullable=False))
     session_id: Optional[str] = Field(default=None, index=True)
-    user_id: Optional[str] = Field(default=None, index=True)
     delete_after: Optional[datetime] = Field(default=None, index=True)
 
 
@@ -36,7 +35,6 @@ class Job(SQLModel, table=True):
     params_json: str = Field(default="{}", sa_column=Column(Text, nullable=False))
     search_document: str = Field(default="", sa_column=Column(Text, nullable=False))
     session_id: Optional[str] = Field(default=None, index=True)
-    user_id: Optional[str] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=utcnow, index=True)
     finished_at: Optional[datetime] = None
     delete_after: Optional[datetime] = Field(default=None, index=True)

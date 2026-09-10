@@ -313,7 +313,7 @@ export function useWorkshop() {
     }
   }
 
-  async function continueToSave() {
+  async function continueToScore() {
     setStep(3);
   }
 
@@ -448,7 +448,7 @@ export function useWorkshop() {
     onUpload,
     startSearch,
     simulate,
-    continueToSave,
+    continueToScore,
     profileAndContinue,
     previewImpact,
     resetImpact,

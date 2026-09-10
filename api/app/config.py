@@ -28,7 +28,6 @@ class Settings:
     s3_secret_key: str = os.environ.get("S3_SECRET_KEY", "").strip()
     s3_region: str = os.environ.get("S3_REGION", "us-east-1").strip()
     s3_prefix: str = os.environ.get("S3_PREFIX", "bases_cache").strip().strip("/")
-    redis_url: str = os.environ.get("REDIS_URL", "").strip()
 
     def frontend_origins(self) -> list[str]:
         extras = ["http://127.0.0.1:3000", "http://localhost:3000"]
@@ -49,9 +48,6 @@ class Settings:
         return self.object_storage_backend == "s3" and bool(
             self.s3_endpoint and self.s3_bucket and self.s3_access_key and self.s3_secret_key
         )
-
-    def uses_job_queue(self) -> bool:
-        return bool(self.redis_url)
 
     def bases_cache_path(self) -> Path:
         root = Path(__file__).resolve().parent.parent

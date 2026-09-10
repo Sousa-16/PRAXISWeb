@@ -32,7 +32,7 @@ jobs:
         run: python -m pytest tests/ -q
 
   web:
-    name: Next.js build
+    name: Next.js typecheck and build
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -45,8 +45,9 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Install
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
       - name: Build
         env:
           API_PROXY_TARGET: http://127.0.0.1:8765

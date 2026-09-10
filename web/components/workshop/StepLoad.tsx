@@ -13,7 +13,7 @@ import {
   Text,
   UnstyledButton,
 } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FitParamControl } from "@/components/workshop/FitParamControl";
 import { COMPILE_MSGS } from "@/lib/constants";
 import {
@@ -64,7 +64,20 @@ export function StepLoad({
 }: Props) {
   const maxMb = Math.round(maxUploadBytes / (1024 * 1024));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const maxLookahead = Math.max(0, fitParams.depth_budget - 1);
+
+  useEffect(() => {
+    if (!compiling) {
+      setElapsed(0);
+      return;
+    }
+    const started = job?.created_at ? Date.parse(job.created_at) : Date.now();
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - started) / 1000)));
+    tick();
+    const t = window.setInterval(tick, 1000);
+    return () => window.clearInterval(t);
+  }, [compiling, job?.created_at]);
 
   function updateParam<K extends keyof FitParams>(key: K, value: number | string) {
     const n = typeof value === "number" ? value : Number(value);
@@ -202,8 +215,14 @@ export function StepLoad({
           <Stack gap={6} mt="md">
             <Progress value={100} striped animated color="copper" size="sm" radius="sm" />
             <Text size="sm" c="dimmed" className="mono">
-              {COMPILE_MSGS[msgIdx]}
+              {COMPILE_MSGS[msgIdx]} {elapsed ? `· ${elapsed}s` : ""}
             </Text>
+            {elapsed >= 90 && (
+              <Text size="xs" c="dimmed">
+                Large tables can take a few minutes. If this never finishes, lower “Max rows used for
+                training” in Search settings and try again.
+              </Text>
+            )}
           </Stack>
         )}
       </div>

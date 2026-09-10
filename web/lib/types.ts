@@ -89,6 +89,8 @@ export type Job = {
   label: string;
   status: "queued" | "running" | "succeeded" | "failed";
   error?: string | null;
+  created_at?: string | null;
+  finished_at?: string | null;
   result?: JobResult | null;
   params?: JobResult["params"] | null;
 };

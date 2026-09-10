@@ -15,7 +15,9 @@ Workshop UI and API for PRAXIS Rashomon-set decision trees.
 3. **Browse Trees** — pick a surviving rule  
 4. **Score & export** — score a row or CSV, impact preview, download JSON / Python scorer  
 
-Guest browser sessions own uploads (cookie). Data expires after `GUEST_TTL_HOURS` (default 24). Use **Delete my data** to wipe the session’s rows and NPZ caches.
+Guest browser sessions own uploads (cookie). Data expires after `GUEST_TTL_HOURS` (default 24). Use **Delete my data** to wipe the session’s rows and cache files.
+
+See [privacy](web/app/privacy/page.tsx) copy on `/privacy`. Licensed under [MIT](LICENSE).
 
 ## Deploy
 

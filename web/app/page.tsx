@@ -94,7 +94,7 @@ export default function HomePage() {
           setCompare={w.setCompare}
           setTreeId={w.setTreeId}
           busy={w.busy}
-          onContinue={w.continueToSave}
+          onContinue={w.continueToScore}
           banned={w.banned}
           keep={w.keep}
           onTimbertrekBest={w.downloadTimbertrekBest}
@@ -135,7 +135,10 @@ export default function HomePage() {
       {w.me && (
         <Text size="xs" c="dimmed" ta="center" mt={48} maw={640} mx="auto">
           Uploads are tied to this browser. Guest data expires after {w.me.guest_ttl_hours ?? 24}{" "}
-          hours. Do not upload secrets on the web app.
+          hours. Do not upload secrets on the web app.{" "}
+          <Text component="a" href="/privacy" size="xs" c="copper" inherit>
+            Privacy
+          </Text>
         </Text>
       )}
     </AppShell>

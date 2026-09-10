@@ -121,7 +121,7 @@ function TreeFlowInner({ nodes, highlight, expanded }: Props) {
         edges={flowEdges}
         nodeTypes={nodeTypes}
         fitView
-        minZoom={0.25}
+        minZoom={0.15}
         maxZoom={2.5}
         nodesDraggable={false}
         nodesConnectable={false}
@@ -129,8 +129,9 @@ function TreeFlowInner({ nodes, highlight, expanded }: Props) {
         edgesFocusable={false}
         nodesFocusable={false}
         panOnDrag
-        zoomOnScroll
+        zoomOnScroll={false}
         zoomOnPinch
+        panOnScroll={false}
         preventScrolling
         attributionPosition="bottom-right"
       >

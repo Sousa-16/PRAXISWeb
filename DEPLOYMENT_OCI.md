@@ -188,7 +188,7 @@ docker compose -f docker-compose.oci.yml up -d --build
 ## What not to run on OCI
 
 - **Do not** run the `web` service — Vercel hosts Next.js.
-- **Redis/worker** — skip (local `docker-compose.yml` also has no Redis now). Fits run in-process threads so `fit_cache` stays on the API.
+- **Redis/worker** — removed. Fits run in-process threads so the fitted model can be pickled next to the NPZ cache.
 
 ## After API restart
 

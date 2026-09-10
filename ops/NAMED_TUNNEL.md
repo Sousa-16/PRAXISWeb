@@ -3,6 +3,10 @@
 Quick tunnels (`cloudflared tunnel --url …`) change hostname on every restart and break
 Vercel `API_PROXY_TARGET`. Use a **named tunnel** instead.
 
+This cannot be fully automated from this repo: Cloudflare login is interactive
+(`cloudflared tunnel login` opens a browser). After that, follow the steps below
+and set Vercel `API_PROXY_TARGET` once.
+
 ## One-time setup (on the OCI VM)
 
 ```bash

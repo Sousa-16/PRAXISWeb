@@ -35,7 +35,7 @@ def run_job(job_id: str) -> None:
                 raw_params = {}
             params = normalize_fit_params(raw_params)
             result, bundle = compile_table(df, job.label, **params.as_compile_kwargs())
-            fit_cache.put(job_id, bundle)
+            fit_cache.put(job_id, bundle)  # also pickles to disk for API restarts
             from app.bases_store import save_bundle
 
             save_bundle(job_id, bundle)

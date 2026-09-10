@@ -5,11 +5,11 @@ services:
     ports:
       - "8765:8765"
     environment:
-      DATABASE_URL: sqlite:///./praxis_web.db
+      DATABASE_URL: sqlite:////app/data/praxis_web.db
       FRONTEND_ORIGIN: http://localhost:3000
       BASES_CACHE_DIR: data/bases_cache
     volumes:
-      - bases_cache:/app/data/bases_cache
+      - api_data:/app/data
 
   web:
     build:
@@ -22,4 +22,4 @@ services:
       - api
 
 volumes:
-  bases_cache:
+  api_data:
