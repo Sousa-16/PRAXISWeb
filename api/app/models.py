@@ -33,6 +33,7 @@ class Job(SQLModel, table=True):
     status: str = Field(index=True)
     error: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     result_json: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    params_json: str = Field(default="{}", sa_column=Column(Text, nullable=False))
     search_document: str = Field(default="", sa_column=Column(Text, nullable=False))
     session_id: Optional[str] = Field(default=None, index=True)
     user_id: Optional[str] = Field(default=None, index=True)

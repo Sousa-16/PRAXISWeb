@@ -52,11 +52,11 @@ export const praxisWeb = {
     body.append("file", file);
     return api<DatasetPreview>("/v1/datasets", { method: "POST", body });
   },
-  createJob: (dataset_id: string, label: string) =>
+  createJob: (dataset_id: string, label: string, params?: Record<string, number>) =>
     api<Job>("/v1/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataset_id, label }),
+      body: JSON.stringify(params ? { dataset_id, label, params } : { dataset_id, label }),
     }),
   getJob: (id: string) => api<Job>(`/v1/jobs/${id}`),
   profileJob: (jobId: string, body: { banned: string[]; keep: string[]; max_trees?: number }) =>

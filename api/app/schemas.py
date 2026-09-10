@@ -6,10 +6,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.fit_params import FitParams
+
 
 class JobCreate(BaseModel):
     dataset_id: str
     label: str
+    params: FitParams | dict[str, Any] | None = None
 
 
 class ScoreBody(BaseModel):

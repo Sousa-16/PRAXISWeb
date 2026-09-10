@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notifications } from "@mantine/notifications";
 import { praxisWeb } from "@/lib/api";
 import { COMPILE_MSGS, PAGE_SIZE, START_EVENT } from "@/lib/constants";
+import { DEFAULT_FIT_PARAMS, clampFitParams, type FitParams } from "@/lib/fitParams";
 import { clearWorkshopStore, loadWorkshopStore, saveWorkshopStore } from "@/lib/sessionStore";
 import { bestAccuracy, remainingTrees, sortTrees } from "@/lib/trees";
 import type {
@@ -23,6 +24,7 @@ export function useWorkshop() {
   const [step, setStep] = useState(0);
   const [dataset, setDataset] = useState<DatasetPreview | null>(null);
   const [label, setLabel] = useState("");
+  const [fitParams, setFitParamsState] = useState<FitParams>({ ...DEFAULT_FIT_PARAMS });
   const [job, setJob] = useState<Job | null>(null);
   const [banned, setBanned] = useState<string[]>([]);
   const [keep, setKeep] = useState<string[]>([]);
@@ -45,6 +47,10 @@ export function useWorkshop() {
   const [matchCounting, setMatchCounting] = useState(false);
   const [matchCountStale, setMatchCountStale] = useState(false);
   const bootGen = useRef(0);
+
+  function setFitParams(next: FitParams) {
+    setFitParamsState(clampFitParams(next));
+  }
 
   const refreshMe = useCallback(() => {
     praxisWeb.me().then(setMe).catch(() => setMe(null));
@@ -218,7 +224,11 @@ export function useWorkshop() {
     setProfiling(true);
     setBusy(true);
     try {
-      const next = await praxisWeb.profileJob(job.id, { banned, keep });
+      const next = await praxisWeb.profileJob(job.id, {
+        banned,
+        keep,
+        max_trees: fitParams.max_trees,
+      });
       setJob({ ...job, result: next, status: "succeeded" });
       setTreeId(null);
       setPage(1);
@@ -296,7 +306,7 @@ export function useWorkshop() {
     if (!dataset) return;
     setBusy(true);
     try {
-      const created = await praxisWeb.createJob(dataset.id, label);
+      const created = await praxisWeb.createJob(dataset.id, label, fitParams);
       setJob(created);
       notifications.show({
         title: "Search started",
@@ -422,6 +432,8 @@ export function useWorkshop() {
     dataset,
     label,
     setLabel,
+    fitParams,
+    setFitParams,
     job,
     banned,
     keep,

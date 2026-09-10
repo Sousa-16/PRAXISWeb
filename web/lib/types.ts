@@ -65,6 +65,14 @@ export type JobResult = {
   trees: TreeProfile[];
   label: string;
   used_tgb?: boolean;
+  params?: {
+    lambda_reg: number;
+    depth_budget: number;
+    rashomon_mult: number;
+    lookahead_k: number;
+    fit_rows: number;
+    max_trees: number;
+  };
 };
 
 export type RuleSort =
@@ -82,6 +90,7 @@ export type Job = {
   status: "queued" | "running" | "succeeded" | "failed";
   error?: string | null;
   result?: JobResult | null;
+  params?: JobResult["params"] | null;
 };
 
 export type ScoreOut = {
@@ -131,5 +140,9 @@ export type Me = {
   guest_ttl_hours: number | null;
   max_rows: number;
   max_upload_bytes: number;
+  fit_params?: {
+    defaults: JobResult["params"];
+    bounds: Record<string, { min: number; max: number }>;
+  };
   notice: string;
 };

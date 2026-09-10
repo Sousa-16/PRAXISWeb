@@ -101,12 +101,49 @@ def test_search_empty_and_miss(client):
     assert miss.json() == {"policies": []}
 
 
-def test_me_exposes_limits(client):
+def test_fit_params_defaults_and_clamp():
+    from app.fit_params import FitParams, normalize_fit_params
+
+    d = FitParams()
+    assert d.lambda_reg == 0.01
+    assert d.depth_budget == 5
+    assert d.lookahead_k == 1
+    tight = normalize_fit_params({"lookahead_k": 9, "depth_budget": 3})
+    assert tight.depth_budget == 3
+    assert tight.lookahead_k == 2
+    wide = normalize_fit_params({"rashomon_mult": 0.5, "fit_rows": 10})
+    assert wide.rashomon_mult == 0.2
+    assert wide.fit_rows == 100
+
+
+def test_create_job_accepts_params(client):
+    created = client.post("/v1/datasets/sample")
+    did = created.json()["id"]
+    job = client.post(
+        "/v1/jobs",
+        json={
+            "dataset_id": did,
+            "label": "class",
+            "params": {"depth_budget": 3, "rashomon_mult": 0.01, "lookahead_k": 1},
+        },
+    )
+    assert job.status_code == 202
+    body = job.json()
+    assert body["params"]["depth_budget"] == 3
+    assert body["params"]["rashomon_mult"] == 0.01
+    assert body["params"]["lookahead_k"] == 1
+    assert body["params"]["lambda_reg"] == 0.01
+
+
+def test_me_exposes_fit_params(client):
     mine = client.get("/v1/me")
     assert mine.status_code == 200
     body = mine.json()
     assert isinstance(body["max_rows"], int) and body["max_rows"] > 0
     assert isinstance(body["max_upload_bytes"], int) and body["max_upload_bytes"] > 0
+    fp = body["fit_params"]
+    assert fp["defaults"]["fit_rows"] == 2000
+    assert fp["bounds"]["depth_budget"]["max"] == 8
 
 
 def test_score_policy_unit_only():

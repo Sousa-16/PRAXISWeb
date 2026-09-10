@@ -34,6 +34,8 @@ export default function HomePage() {
           dataset={w.dataset}
           label={w.label}
           setLabel={w.setLabel}
+          fitParams={w.fitParams}
+          setFitParams={w.setFitParams}
           warnOwn={w.warnOwn}
           busy={w.busy}
           compiling={w.compiling}

@@ -27,6 +27,7 @@ from app.owners import (
     wipe_identity,
 )
 from app.policy import freeze_policy, score_job, score_policy, search_blob
+from app.fit_params import fit_params_public_meta, normalize_fit_params
 from app.search import search_owned
 from app.timbertrek_export import build_timbertrek_doc, clamp_export_cap
 
@@ -117,6 +118,7 @@ def set_cookie(response: Response, ident: Identity) -> None:
 class JobCreate(BaseModel):
     dataset_id: str
     label: str
+    params: dict[str, Any] | None = None
 
 
 class ScoreBody(BaseModel):
@@ -216,6 +218,7 @@ def health():
         "max_rows": settings.max_rows,
         "max_upload_bytes": settings.max_upload_bytes,
         "guest_ttl_hours": settings.guest_ttl_hours,
+        "fit_params": fit_params_public_meta(),
     }
 
 
@@ -227,6 +230,7 @@ def me(ident: Identity = Depends(identity_dep)):
         "guest_ttl_hours": None if ident.user_id else settings.guest_ttl_hours,
         "max_rows": settings.max_rows,
         "max_upload_bytes": settings.max_upload_bytes,
+        "fit_params": fit_params_public_meta(),
         "notice": (
             "Other visitors cannot open your uploads. They are tied to this browser"
             " (or your account if you sign in). Guest data is deleted after "
@@ -301,6 +305,12 @@ def create_job(
     ds = get_owned_dataset(session, ident, body.dataset_id)
     if ds is None:
         raise HTTPException(404, "Unknown dataset.")
+    from app.fit_params import normalize_fit_params
+
+    try:
+        params = normalize_fit_params(body.params)
+    except Exception as exc:
+        raise HTTPException(400, f"Invalid search settings: {exc}") from exc
     jid = secrets.token_hex(6)
     job = Job(
         id=jid,
@@ -308,6 +318,7 @@ def create_job(
         label=body.label,
         status="queued",
         search_document=body.label,
+        params_json=json.dumps(params.as_compile_kwargs()),
         **stamp_owner(ident),
     )
     session.add(job)
@@ -315,11 +326,23 @@ def create_job(
     from app.job_queue import enqueue_job
 
     enqueue_job(jid)
-    return {"id": jid, "dataset_id": ds.id, "label": body.label, "status": "queued"}
+    return {
+        "id": jid,
+        "dataset_id": ds.id,
+        "label": body.label,
+        "status": "queued",
+        "params": params.as_compile_kwargs(),
+    }
 
 
 def _job_public(job: Job) -> dict:
     result = json.loads(job.result_json) if job.result_json else None
+    try:
+        params = json.loads(job.params_json or "{}")
+    except (TypeError, ValueError):
+        params = {}
+    if not params:
+        params = None
     return {
         "id": job.id,
         "dataset_id": job.dataset_id,
@@ -329,6 +352,7 @@ def _job_public(job: Job) -> dict:
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "finished_at": job.finished_at.isoformat() if job.finished_at else None,
         "result": result,
+        "params": params,
     }
 
 
@@ -356,6 +380,16 @@ def profile_job(
         raise HTTPException(404, "Unknown job.")
     if job.status != "succeeded" or not job.result_json:
         raise HTTPException(409, "Job has not finished compiling.")
+    max_trees = body.max_trees
+    if max_trees is None:
+        try:
+            stored_params = json.loads(job.params_json or "{}")
+            if stored_params.get("max_trees") is not None:
+                max_trees = int(stored_params["max_trees"])
+        except (TypeError, ValueError):
+            max_trees = None
+    if max_trees is not None:
+        max_trees = max(50, min(5000, int(max_trees)))
     bundle = fit_cache.get(job_id)
     if bundle is None:
         stored = json.loads(job.result_json)
@@ -372,7 +406,7 @@ def profile_job(
             "Browse the last saved profile, or run Find good rules again to change column rules.",
         )
     try:
-        result = profile_for_constraints(bundle, body.banned, body.keep, body.max_trees)
+        result = profile_for_constraints(bundle, body.banned, body.keep, max_trees)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     job.result_json = json.dumps(result)
