@@ -210,6 +210,6 @@ docker compose -f docker-compose.oci.yml up -d --build
 
 ## After API restart
 
-Browse Trees can reuse the last saved profile when column rules match. Changing bans/keeps or TimberTrek expand needs **Find good rules** again.
+Set Tree Rules match counts can use the NPZ bases index. Browse Trees can reuse a profile saved from a prior Continue when bans/keeps match; otherwise run **Find good rules** again. TimberTrek expand needs the live fit.
 
 See also: [DEPLOYMENT.md](DEPLOYMENT.md) for Render and local Docker.

@@ -9,7 +9,7 @@ from sqlmodel import Session as DBSession
 
 from app import fit_cache
 from app.db import engine
-from app.fit import compile_table, profile_for_constraints
+from app.fit import compile_table
 from app.models import Dataset, Job
 from app.policy import search_blob
 from app.tables import read_csv
@@ -33,11 +33,8 @@ def run_job(job_id: str) -> None:
             from app.bases_store import save_bundle
 
             save_bundle(job_id, bundle)
-            # Eager default profile so Browse Trees works after API restart (no bans/keeps).
-            try:
-                result = profile_for_constraints(bundle, [], [], None)
-            except ValueError:
-                pass
+            # Full tree profiles wait until Browse (profileAndContinue). Fit only stores
+            # the shell + NPZ bases index so Set Tree Rules match counts stay cheap.
             job.status = "succeeded"
             job.result_json = json.dumps(result)
             job.search_document = search_blob(result, None)

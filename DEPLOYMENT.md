@@ -160,7 +160,7 @@ cd web && npm run dev
 
 ## Limitations
 
-- **In-memory fit cache** is lost when the API restarts; **Browse Trees** can still use the last saved profile if your column rules match. Changing bans/keeps or TimberTrek expand needs **Find good rules** again.
+- **In-memory fit cache** is lost when the API restarts. Set Tree Rules match counts can still use the NPZ bases index. **Browse Trees** needs a saved profile from a prior Continue (same bans/keeps), or **Find good rules** again. TimberTrek expand needs the live fit.
 - **Ephemeral disk** on Render: match-count NPZ cache may not survive redeploys unless you add a Render disk (paid) or S3 storage (see `api/.env.example`).
 - CSV bytes live in Postgres — fine for demo sizes.
 
