@@ -362,7 +362,7 @@ export function useWorkshop() {
       const out = await praxisWeb.downloadTimbertrek(job.id, {
         banned,
         keep,
-        max_trees: expand ? 5000 : 2000,
+        max_trees: 2000,
         expand: true,
       });
       downloadBlob(out.filename, out.blob);

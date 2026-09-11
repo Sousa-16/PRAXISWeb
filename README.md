@@ -17,7 +17,8 @@ Workshop UI and API for PRAXIS Rashomon-set decision trees.
 
 Guest browser sessions own uploads (cookie). Data expires after `GUEST_TTL_HOURS` (default 24). Use **Delete my data** to wipe the session’s rows and cache files.
 
-See [privacy](web/app/privacy/page.tsx) copy on `/privacy`. Licensed under [MIT](LICENSE).
+See [privacy](web/app/privacy/page.tsx) copy on `/privacy` and [SECURITY.md](SECURITY.md) for
+guest isolation, rate limits, and operator checklist. Licensed under [MIT](LICENSE).
 
 ## Deploy
 

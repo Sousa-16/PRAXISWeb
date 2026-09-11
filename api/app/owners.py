@@ -41,6 +41,11 @@ def get_owned_job(session: Session, ident: Identity, job_id: str) -> Job | None:
     return session.exec(select(Job).where(Job.id == job_id).where(owner_clause(Job, ident))).first()
 
 
+def global_active_job_count(session: Session) -> int:
+    rows = session.exec(select(Job).where(col(Job.status).in_(["queued", "running"]))).all()
+    return len(rows)
+
+
 def active_job_count(session: Session, ident: Identity) -> int:
     rows = session.exec(
         select(Job).where(owner_clause(Job, ident)).where(col(Job.status).in_(["queued", "running"]))

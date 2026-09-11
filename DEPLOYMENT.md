@@ -6,6 +6,7 @@
 |-------|---------|
 | **[DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md)** | Oracle VM, Docker API, Supabase, Vercel env vars |
 | **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)** | Stable API hostname (production) |
+| **[SECURITY.md](SECURITY.md)** | Guest isolation, rate limits, operator checklist |
 
 ```mermaid
 flowchart TB
@@ -150,3 +151,4 @@ See `api/.env.example` for optional S3 object storage on Render.
 | `/health` `database: false` | Check `DATABASE_URL`; Supabase pooler not paused |
 | PRAXIS fit OOM | OCI: use Ampere 12 GB; Render: use Starter plan |
 | API URL changed after reboot | Use [DuckDNS + Caddy](ops/CADDY_DUCKDNS.md), not a quick Cloudflare tunnel |
+| Demo feels slammed / 429s | Expected under [SECURITY.md](SECURITY.md) limits; wait or lower env caps |

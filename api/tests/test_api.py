@@ -234,6 +234,19 @@ def test_me_exposes_fit_params(client):
     fp = body["fit_params"]
     assert fp["defaults"]["fit_rows"] == 2000
     assert fp["bounds"]["depth_budget"]["max"] == 8
+    assert fp["bounds"]["fit_rows"]["max"] == 2000
+    assert fp["bounds"]["max_trees"]["max"] == 2000
+
+
+def test_create_job_rate_limit(client):
+    created = client.post("/v1/datasets/sample")
+    did = created.json()["id"]
+    codes = []
+    for _ in range(4):
+        res = client.post("/v1/jobs", json={"dataset_id": did, "label": "class"})
+        codes.append(res.status_code)
+    assert 429 in codes
+    assert codes.count(202) <= 3
 
 
 def test_score_policy_unit_only():

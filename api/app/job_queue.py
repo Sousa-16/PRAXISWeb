@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import threading
 
+from app.config import settings
+
+_fit_slots = threading.Semaphore(max(1, settings.max_global_jobs))
+
 
 def enqueue_job(job_id: str) -> None:
     threading.Thread(target=_run_inline, args=(job_id,), daemon=True).start()
@@ -12,4 +16,6 @@ def enqueue_job(job_id: str) -> None:
 def _run_inline(job_id: str) -> None:
     from app.jobs_runner import run_job
 
-    run_job(job_id)
+    # Cap concurrent PRAXIS fits so one VM cannot be stacked with unbounded threads.
+    with _fit_slots:
+        run_job(job_id)

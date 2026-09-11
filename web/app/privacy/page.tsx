@@ -19,7 +19,9 @@ export default function PrivacyPage() {
         </Text>
         <Text size="sm">
           Do not upload secrets, personal data you are not allowed to process, or anything you would
-          not put on a shared demo machine. For private work, run the API locally.
+          not put on a shared demo machine. For private work, run the API locally. The demo limits
+          upload size, search cost, and how many compilations can run at once so one visitor cannot
+          easily crash the shared VM.
         </Text>
         <Text size="sm" c="dimmed">
           There are no accounts, no analytics pixels, and no third-party auth. Fonts are bundled with

@@ -22,6 +22,7 @@ from app.owners import (
     active_job_count,
     get_owned_dataset,
     get_owned_job,
+    global_active_job_count,
     purge_expired,
     stamp_owner,
     wipe_identity,
@@ -189,7 +190,7 @@ class ProfileBody(BaseModel):
 class TimberTrekExportBody(BaseModel):
     banned: list[str] = Field(default_factory=list)
     keep: list[str] = Field(default_factory=list)
-    # Optional higher cap for browse export (TimberTrek-friendly; max 5000).
+    # Optional cap for browse export (clamped to 2000).
     max_trees: int | None = None
     # If true and the model is still in memory, expand profile for this download only.
     expand: bool = False
@@ -245,6 +246,7 @@ def health():
         "job_queue": "thread",
         "max_rows": settings.max_rows,
         "max_upload_bytes": settings.max_upload_bytes,
+        "max_global_jobs": settings.max_global_jobs,
         "guest_ttl_hours": settings.guest_ttl_hours,
         "fit_params": fit_params_public_meta(),
     }
@@ -283,8 +285,8 @@ def _client_ip(request: Request) -> str:
 
 def _store_dataset(session: Session, ident: Identity, filename: str, raw: bytes, request: Request) -> dict:
     purge_expired(session)
-    check_rate(ident.session_id, "upload", limit=8, window_s=60.0)
-    check_rate(_client_ip(request), "upload_ip", limit=20, window_s=60.0)
+    check_rate(ident.session_id, "upload", limit=4, window_s=60.0)
+    check_rate(_client_ip(request), "upload_ip", limit=8, window_s=60.0)
     if len(raw) > settings.max_upload_bytes:
         mb = max(1, settings.max_upload_bytes // (1024 * 1024))
         raise HTTPException(413, f"File is too large ({mb} MB max).")
@@ -334,10 +336,12 @@ def create_job(
 ):
     purge_expired(session)
     abandon_orphaned_jobs(session)
-    check_rate(ident.session_id, "create_job", limit=6, window_s=120.0)
-    check_rate(_client_ip(request), "create_job_ip", limit=12, window_s=120.0)
+    check_rate(ident.session_id, "create_job", limit=3, window_s=300.0)
+    check_rate(_client_ip(request), "create_job_ip", limit=6, window_s=300.0)
     if active_job_count(session, ident) >= settings.max_active_jobs:
         raise HTTPException(429, "A search is already running for you. Wait for it to finish.")
+    if global_active_job_count(session) >= settings.max_global_jobs:
+        raise HTTPException(429, "The demo is busy compiling another search. Try again in a minute.")
     ds = get_owned_dataset(session, ident, body.dataset_id)
     if ds is None:
         raise HTTPException(404, "Unknown dataset.")
@@ -404,6 +408,7 @@ def get_job(job_id: str, session: Session = Depends(get_session), ident: Identit
 def profile_job(
     job_id: str,
     body: ProfileBody,
+    request: Request,
     session: Session = Depends(get_session),
     ident: Identity = Depends(identity_dep),
 ):
@@ -411,6 +416,8 @@ def profile_job(
     from app import fit_cache
     from app.fit import profile_for_constraints
 
+    check_rate(ident.session_id, "profile", limit=8, window_s=60.0)
+    check_rate(_client_ip(request), "profile_ip", limit=16, window_s=60.0)
     job = get_owned_job(session, ident, job_id)
     if job is None:
         raise HTTPException(404, "Unknown job.")
@@ -425,7 +432,7 @@ def profile_job(
         except (TypeError, ValueError):
             max_trees = None
     if max_trees is not None:
-        max_trees = max(50, min(5000, int(max_trees)))
+        max_trees = max(50, min(2000, int(max_trees)))
     bundle = fit_cache.get(job_id)
     if bundle is None:
         stored = json.loads(job.result_json)
@@ -456,6 +463,7 @@ def profile_job(
 def match_count_job(
     job_id: str,
     body: MatchCountBody,
+    request: Request,
     session: Session = Depends(get_session),
     ident: Identity = Depends(identity_dep),
 ):
@@ -463,6 +471,8 @@ def match_count_job(
     from app import bases_store, fit_cache
     from app.fit import count_matching
 
+    check_rate(ident.session_id, "match_count", limit=40, window_s=60.0)
+    check_rate(_client_ip(request), "match_count_ip", limit=80, window_s=60.0)
     job = get_owned_job(session, ident, job_id)
     if job is None:
         raise HTTPException(404, "Unknown job.")
@@ -485,6 +495,7 @@ def match_count_job(
 def export_timbertrek(
     job_id: str,
     body: TimberTrekExportBody,
+    request: Request,
     session: Session = Depends(get_session),
     ident: Identity = Depends(identity_dep),
 ):
@@ -492,6 +503,8 @@ def export_timbertrek(
     from app import fit_cache
     from app.fit import profile_for_constraints
 
+    check_rate(ident.session_id, "timbertrek", limit=4, window_s=120.0)
+    check_rate(_client_ip(request), "timbertrek_ip", limit=8, window_s=120.0)
     job = get_owned_job(session, ident, job_id)
     if job is None:
         raise HTTPException(404, "Unknown job.")
@@ -590,6 +603,7 @@ def freeze_from_job(
 
 @app.post("/v1/jobs/{job_id}/score_batch")
 async def score_job_batch(
+    request: Request,
     job_id: str,
     file: UploadFile = File(...),
     tree_id: int = Form(0),
@@ -599,6 +613,8 @@ async def score_job_batch(
     ident: Identity = Depends(identity_dep),
 ):
     """Score every row of an uploaded CSV; return the CSV with decision columns added."""
+    check_rate(ident.session_id, "score_batch", limit=4, window_s=120.0)
+    check_rate(_client_ip(request), "score_batch_ip", limit=8, window_s=120.0)
     _, result = _succeeded_job_result(session, ident, job_id)
     policy = freeze_policy(result, tree_id, _parse_str_list(banned, "banned"), _parse_str_list(keep, "keep"))
     raw = await file.read()
@@ -635,10 +651,13 @@ async def score_job_batch(
 def preview_impact(
     job_id: str,
     body: ImpactBody,
+    request: Request,
     session: Session = Depends(get_session),
     ident: Identity = Depends(identity_dep),
 ):
     """Run the chosen rule over the original file: prediction rates overall and per group."""
+    check_rate(ident.session_id, "impact", limit=8, window_s=60.0)
+    check_rate(_client_ip(request), "impact_ip", limit=16, window_s=60.0)
     job, result = _succeeded_job_result(session, ident, job_id)
     policy = freeze_policy(result, body.tree_id, body.banned, body.keep)
     # Agreement across the ensemble is not needed here; score the single tree.

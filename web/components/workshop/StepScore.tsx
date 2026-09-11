@@ -58,7 +58,7 @@ export function StepScore({
   row,
   setRow,
   scoreCols,
-  maxRows = 100000,
+  maxRows = 20000,
   impact,
   impactCol,
   setImpactCol,

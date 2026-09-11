@@ -188,4 +188,5 @@ docker compose -f docker-compose.oci.yml up -d --build
 
 Set Tree Rules match counts can use the NPZ bases index. Browse Trees can reuse a profile saved from a prior Continue when bans/keeps match; otherwise run **Find good rules** again. TimberTrek expand needs the live fit.
 
-See also: [DEPLOYMENT.md](DEPLOYMENT.md) for Render and local Docker.
+See also: [DEPLOYMENT.md](DEPLOYMENT.md) for the overview, [SECURITY.md](SECURITY.md) for
+rate limits and operator checklist.

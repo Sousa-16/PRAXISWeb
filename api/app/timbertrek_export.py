@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 DEFAULT_EXPORT_CAP = 2000
-MAX_EXPORT_CAP = 5000
+MAX_EXPORT_CAP = 2000
 
 
 def _feature_entry(name: str) -> list[str]:

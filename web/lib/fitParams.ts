@@ -28,8 +28,8 @@ export const FIT_PARAM_BOUNDS: Record<
   depth_budget: { min: 2, max: 8, step: 1 },
   rashomon_mult: { min: 0, max: 0.2, step: 0.01 },
   lookahead_k: { min: 0, max: 7, step: 1 },
-  fit_rows: { min: 100, max: 5000, step: 100 },
-  max_trees: { min: 50, max: 5000, step: 50 },
+  fit_rows: { min: 100, max: 2000, step: 100 },
+  max_trees: { min: 50, max: 2000, step: 50 },
 };
 
 export const FIT_PARAM_FIELDS: {

@@ -1,6 +1,8 @@
 # Reverse-proxy the PRAXIS API. Copy to /etc/caddy/Caddyfile on the OCI VM.
 #
 # Hostname: praxis-web-api.duckdns.org
+# Request limits live in the API (see SECURITY.md). Do not add rate_limit here
+# unless you rebuild Caddy with github.com/mholt/caddy-ratelimit.
 
 praxis-web-api.duckdns.org {
 	reverse_proxy 127.0.0.1:8765

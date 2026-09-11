@@ -22,8 +22,8 @@ class FitParams(BaseModel):
     depth_budget: int = Field(default=DEFAULT_DEPTH_BUDGET, ge=2, le=8)
     rashomon_mult: float = Field(default=DEFAULT_RASHOMON_MULT, ge=0.0, le=0.2)
     lookahead_k: int = Field(default=DEFAULT_LOOKAHEAD_K, ge=0, le=7)
-    fit_rows: int = Field(default=DEFAULT_FIT_ROWS, ge=100, le=5000)
-    max_trees: int = Field(default=DEFAULT_MAX_TREES, ge=50, le=5000)
+    fit_rows: int = Field(default=DEFAULT_FIT_ROWS, ge=100, le=2000)
+    max_trees: int = Field(default=DEFAULT_MAX_TREES, ge=50, le=2000)
 
     @field_validator("lambda_reg", "rashomon_mult", mode="before")
     @classmethod
@@ -70,8 +70,8 @@ def normalize_fit_params(raw: FitParams | dict[str, Any] | None) -> FitParams:
         "depth_budget": (2, 8),
         "rashomon_mult": (0.0, 0.2),
         "lookahead_k": (0, 7),
-        "fit_rows": (100, 5000),
-        "max_trees": (50, 5000),
+        "fit_rows": (100, 2000),
+        "max_trees": (50, 2000),
     }
     for key, (lo, hi) in clamps.items():
         if key not in data or data[key] is None or data[key] == "":
@@ -93,7 +93,7 @@ def fit_params_public_meta() -> dict[str, Any]:
             "depth_budget": {"min": 2, "max": 8},
             "rashomon_mult": {"min": 0.0, "max": 0.2},
             "lookahead_k": {"min": 0, "max": 7},
-            "fit_rows": {"min": 100, "max": 5000},
-            "max_trees": {"min": 50, "max": 5000},
+            "fit_rows": {"min": 100, "max": 2000},
+            "max_trees": {"min": 50, "max": 2000},
         },
     }

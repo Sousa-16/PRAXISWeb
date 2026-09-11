@@ -12,7 +12,8 @@ backend-only.
 
 1. Open [https://www.duckdns.org](https://www.duckdns.org) and sign in (GitHub is fine).
 2. Create a subdomain, e.g. `praxis-web-api` → `praxis-web-api.duckdns.org`.
-3. Set the IPv4 address to the VM public IP: `150.136.81.148`.
+3. Set the IPv4 address to the VM public IP (`YOUR_VM_PUBLIC_IP` from the
+   OCI instance page — do not commit the live address).
 4. Copy your **token** from the DuckDNS dashboard.
 
 ### 2. Open ports 80 and 443 in Oracle Cloud
