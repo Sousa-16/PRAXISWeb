@@ -136,17 +136,21 @@ cloudflared tunnel --url http://127.0.0.1:8765
 ```
 
 Copy the `https://….trycloudflare.com` URL.  
-**Note:** Quick tunnels change URL on restart. Prefer **[Option A2 — named tunnel](ops/NAMED_TUNNEL.md)** for production.
+**Note:** Quick tunnels change URL on restart. For production, use **[Option B — Caddy + DuckDNS](ops/CADDY_DUCKDNS.md)** (live) or a **[named Cloudflare tunnel](ops/NAMED_TUNNEL.md)** if you have a Cloudflare domain.
 
 ### Option A2 — Named Cloudflare tunnel (stable URL)
 
 See **[ops/NAMED_TUNNEL.md](ops/NAMED_TUNNEL.md)** and `ops/cloudflared-praxis-api.service`.
 Creates a fixed hostname you can set once in Vercel `API_PROXY_TARGET`.
 
-### Option B — Caddy + domain
+### Option B — Caddy + DuckDNS (stable URL, no paid domain)
 
+Recommended for a public site that should stay up across VM reboots.
 
-Point a domain (or free DuckDNS hostname) to the VM public IP. Install Caddy and reverse-proxy to `localhost:8765`. Caddy obtains Let's Encrypt certs automatically.
+See **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)**. Summary: free hostname
+`https://praxis-web-api.duckdns.org` → Caddy on the VM → `localhost:8765`. Set
+Vercel `API_PROXY_TARGET` once. Open TCP **80** and **443** in the OCI security
+list and on the VM iptables.
 
 ---
 
@@ -181,7 +185,7 @@ docker compose -f docker-compose.oci.yml up -d --build
 | CORS / cookie errors | `FRONTEND_ORIGIN` must exactly match Vercel URL |
 | `/health` `database: false` | Check `DATABASE_URL`; open Supabase pooler access |
 | PRAXIS fit OOM | Use Ampere 12 GB shape, not 1 GB AMD micro |
-| Tunnel URL changed | Switch to a [named tunnel](ops/NAMED_TUNNEL.md); update Vercel `API_PROXY_TARGET` |
+| Tunnel URL changed | Use [DuckDNS + Caddy](ops/CADDY_DUCKDNS.md); update Vercel `API_PROXY_TARGET` once |
 
 ---
 

@@ -1,0 +1,7 @@
+# Reverse-proxy the PRAXIS API. Copy to /etc/caddy/Caddyfile on the OCI VM.
+#
+# Hostname: praxis-web-api.duckdns.org
+
+praxis-web-api.duckdns.org {
+	reverse_proxy 127.0.0.1:8765
+}

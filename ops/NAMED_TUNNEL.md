@@ -1,5 +1,8 @@
 # Named Cloudflare tunnel for a stable API URL
 
+**Live PRAXIS Web uses DuckDNS + Caddy instead** — see [CADDY_DUCKDNS.md](CADDY_DUCKDNS.md).
+Keep this file only if you later attach a Cloudflare-managed domain.
+
 Quick tunnels (`cloudflared tunnel --url …`) change hostname on every restart and break
 Vercel `API_PROXY_TARGET`. Use a **named tunnel** instead.
 

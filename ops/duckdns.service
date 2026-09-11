@@ -1,0 +1,9 @@
+[Unit]
+Description=Update DuckDNS A record for PRAXIS API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/home/ubuntu/PRAXISWeb/ops/duckdns-update.sh
