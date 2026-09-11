@@ -16,7 +16,7 @@ Visitors use `https://praxis-web-nu.vercel.app`. The API hostname is backend-onl
 | 24h TTL + scheduled purge | Guest rows and cache files expire |
 | Delete my data | Wipes that cookie’s datasets, jobs, and cache files |
 
-The **server operator** (you) can still see guest data in Postgres and on disk.
+The **server operator** (you) can still see guest data in the SQLite file and on disk.
 
 ## Usage limits (crash / overload)
 
@@ -43,8 +43,8 @@ threads cannot pile up unbounded.
 **Can:** use the workshop; fill CPU/RAM until limits kick in; make the demo
 slow or briefly unavailable.
 
-**Cannot (by using the website normally):** read your GitHub, Vercel, or
-Supabase passwords; open other visitors’ uploads; SSH into the VM; change
+**Cannot (by using the website normally):** read your GitHub or Vercel
+credentials; open other visitors’ uploads; SSH into the VM; change
 deploy settings.
 
 **Can if credentials leak:** anything those credentials allow. Keep
@@ -56,7 +56,7 @@ deploy settings.
 2. SSH: key-only login (no password). Optional: `fail2ban` on port 22.
 3. OCI security list: **22, 80, 443** only. Do **not** open **8765**.
 4. `FRONTEND_ORIGIN` must exactly match the Vercel URL; `COOKIE_SECURE=1`.
-5. Strong Supabase password; only the VM should have `DATABASE_URL`.
+5. Keep `api/.env` (including `DATABASE_URL`) on the VM only. SQLite is a file on that host.
 6. Optional: ping `https://YOUR_API_HOST/health` with a free uptime checker.
 7. If abused: lower the env vars above, block IPs in iptables, or stop the
    API container until it calms down.

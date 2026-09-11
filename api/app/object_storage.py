@@ -1,4 +1,4 @@
-"""S3-compatible object storage for bases cache (Supabase Storage, AWS S3, MinIO)."""
+"""S3-compatible object storage for bases cache (AWS S3, MinIO, or similar)."""
 
 from __future__ import annotations
 

@@ -1,13 +1,13 @@
 # Deploy on Oracle Cloud (OCI) — $0 Always Free
 
-Stack: **Vercel** (frontend) + **OCI Ampere VM** (API) + **Supabase** (free Postgres).
+Stack: **Vercel** (frontend) + **OCI Ampere VM** (API) + **SQLite on the VM**. No hosted database service.
 
 ```mermaid
 flowchart LR
   User --> Vercel
   Vercel -->|API_PROXY_TARGET HTTPS| Caddy[Caddy on VM]
   Caddy --> API[Docker API :8765]
-  API --> Supabase[(Supabase Postgres)]
+  API --> SQLite[(SQLite file on VM)]
 ```
 
 ---
@@ -19,7 +19,7 @@ flowchart LR
 | Frontend | Vercel | Free |
 | API | OCI Always Free VM | Free |
 | HTTPS to API | DuckDNS + Caddy ([runbook](ops/CADDY_DUCKDNS.md)) | Free |
-| Database | Supabase Postgres | Free tier |
+| Database | SQLite file on the VM (`DATABASE_URL`) | Included |
 
 ---
 
@@ -90,14 +90,16 @@ nano api/.env   # edit values below
 **Minimum `api/.env` for production:**
 
 ```env
-# Supabase → Database → Transaction pooler (port 6543)
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+# SQLite on the VM (same default as local). The API opens this file; there is no remote DB.
+DATABASE_URL=sqlite:///./praxis_web.db
 
 FRONTEND_ORIGIN=https://praxis-web-nu.vercel.app
 COOKIE_SECURE=1
 
 BASES_CACHE_DIR=data/bases_cache
 ```
+
+`docker-compose.oci.yml` loads this file with `env_file`. Do not point `DATABASE_URL` at a third-party host unless you intend to.
 
 Start API (bound to localhost only — tunnel or Caddy will expose HTTPS):
 
@@ -173,7 +175,7 @@ docker compose -f docker-compose.oci.yml up -d --build
 |---------|-----|
 | Vercel can’t reach API | Check tunnel/Caddy is running; `API_PROXY_TARGET` is HTTPS |
 | CORS / cookie errors | `FRONTEND_ORIGIN` must exactly match Vercel URL |
-| `/health` `database: false` | Check `DATABASE_URL`; open Supabase pooler access |
+| `/health` `database: false` | Check `DATABASE_URL` in `api/.env`; SQLite path must be writable in the container |
 | PRAXIS fit OOM | Use Ampere 12 GB shape, not 1 GB AMD micro |
 | Tunnel URL changed | Use [DuckDNS + Caddy](ops/CADDY_DUCKDNS.md); update Vercel `API_PROXY_TARGET` once |
 
