@@ -407,3 +407,94 @@ def test_fit_cache_reload_from_disk(tmp_path, monkeypatch):
     fit_cache.pop("jobpkl")
     assert fit_cache.get("jobpkl") is None
     assert not (tmp_path / "jobpkl.bundle.pkl").exists()
+
+
+def test_bad_csv_returns_400(client):
+    files = {"file": ("bad.csv", b"not,a\nvalid\"\"csv", "text/csv")}
+    res = client.post("/v1/datasets", files=files)
+    assert res.status_code == 400
+    assert "error" in res.json()
+
+
+def test_empty_csv_returns_400(client):
+    files = {"file": ("empty.csv", b"", "text/csv")}
+    res = client.post("/v1/datasets", files=files)
+    assert res.status_code == 400
+
+
+def test_proxy_secret_forwards_client_ip(client, monkeypatch):
+    from app.config import settings
+    from app.rate_limit import _hits
+
+    monkeypatch.setattr(settings, "proxy_secret", "test-secret")
+    _hits.clear()
+    # Exhaust session+IP with a forged visitor IP
+    headers = {
+        "x-praxis-proxy-secret": "test-secret",
+        "x-praxis-client-ip": "203.0.113.9",
+    }
+    codes = []
+    for _ in range(10):
+        codes.append(client.post("/v1/datasets/sample", headers=headers).status_code)
+    assert 429 in codes
+
+
+def test_unhandled_error_hides_internals(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app import main as main_mod
+    from app.main import app
+
+    def boom(*_a, **_k):
+        raise RuntimeError("secret traceback detail")
+
+    monkeypatch.setattr(main_mod, "sample_csv", boom)
+    with TestClient(app, raise_server_exceptions=False) as c:
+        res = c.post("/v1/datasets/sample")
+    assert res.status_code == 500
+    body = res.json()
+    assert "secret traceback" not in body.get("error", "")
+    assert "went wrong" in body["error"].lower()
+
+
+def test_fit_cache_warm_from_disk(tmp_path, monkeypatch):
+    from app import fit_cache
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "bases_cache_dir", str(tmp_path))
+    fit_cache.clear()
+    fit_cache.put("warm1", {"n_trees": 2})
+    fit_cache._CACHE.clear()
+    n = fit_cache.warm_from_disk()
+    assert n >= 1
+    assert fit_cache._CACHE.get("warm1") == {"n_trees": 2}
+    fit_cache.pop("warm1")
+
+
+def test_compile_table_tiny_integration():
+    """Smoke-test a real PRAXIS fit (cheap params) so CI catches tree-praxis breaks."""
+    import pandas as pd
+    from app.fit import compile_table
+
+    rng = list(range(40))
+    df = pd.DataFrame(
+        {
+            "a": [i % 5 for i in rng],
+            "b": [i % 3 for i in rng],
+            "c": [i % 2 for i in rng],
+            "label": ["yes" if i % 2 == 0 else "no" for i in rng],
+        }
+    )
+    result, bundle = compile_table(
+        df,
+        "label",
+        lambda_reg=0.05,
+        depth_budget=2,
+        rashomon_mult=0.05,
+        lookahead_k=0,
+        fit_rows=40,
+        max_trees=50,
+    )
+    assert result["n_trees"] >= 1
+    assert bundle.n_trees >= 1
+    assert "original_columns" in result

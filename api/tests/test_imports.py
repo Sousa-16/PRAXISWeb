@@ -28,6 +28,7 @@ def test_tables_and_main_do_not_import_praxis():
 def test_search_module_removed():
     assert not (PKG / "search.py").exists(), "Unused search.py should stay deleted"
     assert not (PKG / "schemas.py").exists(), "Unused schemas.py should stay deleted"
+    assert not (PKG / "deps.py").exists(), "Unused deps.py should stay deleted"
 
 
 def test_rq_worker_removed():

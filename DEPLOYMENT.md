@@ -8,6 +8,7 @@ There is no Supabase (no Auth, Storage, Realtime, or hosted Postgres). The Next.
 |-------|---------|
 | **[DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md)** | Oracle VM, Docker API, SQLite `api/.env`, Vercel env vars |
 | **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)** | Stable API hostname (production) |
+| **[ops/BACKUP.md](ops/BACKUP.md)** | Snapshot SQLite + fit cache on the VM |
 | **[SECURITY.md](SECURITY.md)** | Guest isolation, rate limits, operator checklist |
 
 ```mermaid
@@ -51,9 +52,12 @@ SQLAlchemy can open Postgres if you set a `postgresql://` URL. Nothing in the li
 
 1. **OCI** — Ampere VM, `docker compose -f docker-compose.oci.yml up -d --build` ([full guide](DEPLOYMENT_OCI.md))
 2. **HTTPS** — DuckDNS + Caddy on the VM ([full guide](ops/CADDY_DUCKDNS.md))
-3. **Vercel** — root directory `web`, `API_PROXY_TARGET` = your Caddy HTTPS URL (no trailing slash)
-4. **SQLite** — `DATABASE_URL=sqlite:///./praxis_web.db` in the VM’s `api/.env` (this is already the default)
+3. **Vercel** — root directory `web`. Set:
+   - `API_PROXY_TARGET` = your Caddy HTTPS URL (no trailing slash)
+   - `PRAXIS_PROXY_SECRET` = same value as on the VM (forwards visitor IP)
+4. **SQLite** — Compose mounts guest DB at `/app/praxis_data/praxis_web.db` (named volume). See [ops/BACKUP.md](ops/BACKUP.md).
 5. **CORS/cookies** — `FRONTEND_ORIGIN` on the API must exactly match the Vercel URL; `COOKIE_SECURE=1`
+6. **Proxy secret** — set the same `PRAXIS_PROXY_SECRET` on the VM `api/.env` and on Vercel so per-IP rate limits see real visitors
 
 **Ship loop after setup:**
 
@@ -135,11 +139,12 @@ Example: `curl https://praxis-web-api.duckdns.org/health`
 
 ## After API restart
 
-- **Set Tree Rules** match counts can use the saved NPZ bases index.
+- Fitted models are pickles under `BASES_CACHE_DIR`; the API reloads them on startup (`fit_cache.warm_from_disk`).
+- **Set Tree Rules** match counts can also use the saved NPZ bases index.
 - **Browse Trees** can reuse a saved profile when bans/keeps match the last Continue; otherwise run **Find good rules** again.
-- **TimberTrek expand** may need the live fit (pickle sidecar helps Browse, not always expand).
+- **TimberTrek expand** needs a reloaded or live fit bundle.
 
-SQLite rows survive a container restart only if the database file is still on disk at the `DATABASE_URL` path. A rebuild that wipes the container filesystem without a volume on that path loses guest data (they also expire after `GUEST_TTL_HOURS`, default 24).
+SQLite lives on the OCI named volume `api_db` (`/app/praxis_data/praxis_web.db`). Guest rows still expire after `GUEST_TTL_HOURS` (default 24). See [ops/BACKUP.md](ops/BACKUP.md).
 
 ---
 
@@ -177,7 +182,8 @@ See `api/.env.example` for optional S3-compatible object storage on Render.
 |---------|-----|
 | Vercel UI loads, API calls fail | Check `API_PROXY_TARGET` is HTTPS; Caddy running; OCI security list allows 443 |
 | CORS / cookie errors | `FRONTEND_ORIGIN` must exactly match the Vercel URL |
-| `/health` `database: false` | On the VM, check `DATABASE_URL` in `api/.env` and that the SQLite path is writable inside the container |
+| `/health` `database: false` | On the VM, check the SQLite file under `/app/praxis_data` and that the `api_db` volume is mounted |
 | PRAXIS fit OOM | OCI: use Ampere 12 GB; Render: use Starter plan |
 | API URL changed after reboot | Use [DuckDNS + Caddy](ops/CADDY_DUCKDNS.md), not a quick Cloudflare tunnel |
 | Demo feels slammed / 429s | Expected under [SECURITY.md](SECURITY.md) limits; wait or lower env caps |
+| IP rate limits never trip | Set matching `PRAXIS_PROXY_SECRET` on Vercel and the VM |

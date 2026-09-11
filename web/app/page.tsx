@@ -8,6 +8,7 @@ import { StepHide } from "@/components/workshop/StepHide";
 import { StepLoad } from "@/components/workshop/StepLoad";
 import { StepScore } from "@/components/workshop/StepScore";
 import { StepTry } from "@/components/workshop/StepTry";
+import { GUEST_FOOTER } from "@/lib/constants";
 import { useWorkshop } from "@/hooks/useWorkshop";
 
 export default function HomePage() {
@@ -23,7 +24,13 @@ export default function HomePage() {
     >
       {!w.dataset && <Hero busy={w.busy} onSample={w.useSample} onUpload={w.onUpload} />}
 
-      {w.dataset && <StepRail active={w.step} onStep={w.setStep} />}
+      {w.dataset && (
+        <StepRail
+          active={w.step}
+          maxStep={w.maxStep}
+          onStep={(i) => w.setStep(Math.min(i, w.maxStep))}
+        />
+      )}
 
       {w.step === 0 && w.dataset && (
         <StepLoad
@@ -61,18 +68,8 @@ export default function HomePage() {
           profiling={w.profiling}
           modeOf={w.modeOf}
           setMode={w.setMode}
-          onReset={() => {
-            w.setBanned([]);
-            w.setKeep([]);
-            w.setMatchCount(w.result?.n_trees ?? null);
-            w.setMatchCounting(false);
-          }}
-          onHideAll={() => {
-            w.setBanned(w.columns);
-            w.setKeep([]);
-            w.setMatchCount(0);
-            w.setMatchCounting(true);
-          }}
+          onReset={w.resetConstraints}
+          onHideAll={w.hideAllColumns}
           onContinue={w.profileAndContinue}
         />
       )}
@@ -134,8 +131,7 @@ export default function HomePage() {
 
       {w.me && (
         <Text size="xs" c="dimmed" ta="center" mt={48} maw={640} mx="auto">
-          Uploads are tied to this browser. Guest data expires after {w.me.guest_ttl_hours ?? 24}{" "}
-          hours. Do not upload secrets on the web app.{" "}
+          {GUEST_FOOTER.replace("{hours}", String(w.me.guest_ttl_hours ?? 24))}{" "}
           <Text component="a" href="/privacy" size="xs" c="copper" inherit>
             Privacy
           </Text>

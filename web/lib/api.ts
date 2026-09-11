@@ -5,15 +5,17 @@ async function parse(res: Response) {
   if (!res.ok) {
     const fromApi = typeof data.error === "string" ? data.error : typeof data.detail === "string" ? data.detail : "";
     const hint =
-      res.status >= 500
-        ? "The API on port 8765 did not answer. From the repo root, run it in WebApp/api, then try again."
-        : `Request failed (${res.status})`;
+      res.status === 429
+        ? "The demo is busy. Wait a moment and try again."
+        : res.status >= 500
+          ? "The demo is temporarily unavailable. Try again in a moment."
+          : `Request failed (${res.status})`;
     throw new Error(fromApi || hint);
   }
   return data;
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     ...init,
     credentials: "include",

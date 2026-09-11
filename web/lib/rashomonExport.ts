@@ -1,7 +1,7 @@
 import { downloadText } from "@/lib/download";
 import type { JobResult, TreeProfile } from "@/lib/types";
 
-export type RashomonTrieDoc = {
+type RashomonTrieDoc = {
   kind: "praxis_web.rashomon_trie";
   schema_version: 1;
   label: string;
@@ -14,7 +14,7 @@ export type RashomonTrieDoc = {
 };
 
 /** JSON of every tree that survives the current won’t-have / must-use constraints. */
-export function buildRashomonTrie(
+function buildRashomonTrie(
   result: JobResult,
   trees: TreeProfile[],
   banned: string[],

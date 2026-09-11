@@ -27,9 +27,9 @@ from app.owners import (
     stamp_owner,
     wipe_identity,
 )
-from app.policy import freeze_policy, score_job, score_policy, search_blob
+from app.policy import freeze_policy, score_job, score_policy
 from app.fit_params import fit_params_public_meta, normalize_fit_params
-from app.rate_limit import check_rate
+from app.rate_limit import check_session_and_ip
 from app.timbertrek_export import build_timbertrek_doc, clamp_export_cap
 
 try:
@@ -54,21 +54,27 @@ if settings.sentry_dsn and sentry_sdk is not None:
 
 
 def _purge_loop() -> None:
+    import logging
+
+    log = logging.getLogger("praxis.purge")
     while True:
         time.sleep(900)
         try:
             with Session(engine) as session:
                 purge_expired(session)
         except Exception:
-            pass
+            log.exception("Guest purge failed")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from app import fit_cache
+
     init_db()
     with Session(engine) as session:
         abandon_orphaned_jobs(session)
         purge_expired(session)
+    fit_cache.warm_from_disk()
     threading.Thread(target=_purge_loop, daemon=True, name="praxis-purge").start()
     yield
 
@@ -82,6 +88,9 @@ app = FastAPI(
         "Next.js on Vercel should call this Python host; do not run PRAXIS on Vercel."
     ),
     lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 app.add_middleware(
@@ -118,19 +127,6 @@ async def session_and_purge(request: Request, call_next):
 
 def identity_dep(request: Request) -> Identity:
     return request.state.identity
-
-
-def set_cookie(response: Response, ident: Identity) -> None:
-    if ident.new_cookie:
-        response.set_cookie(
-            COOKIE,
-            ident.session_id,
-            httponly=True,
-            samesite="lax",
-            secure=settings.cookie_secure,
-            max_age=_cookie_max_age(),
-            path="/",
-        )
 
 
 class JobCreate(BaseModel):
@@ -218,10 +214,13 @@ async def http_exc(_, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def any_exc(_, exc: Exception):
-    if isinstance(exc, HTTPException):
-        detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
-        return JSONResponse({"error": detail}, status_code=exc.status_code)
-    return JSONResponse({"error": str(exc) or exc.__class__.__name__}, status_code=500)
+    import logging
+
+    logging.getLogger("praxis.api").exception("Unhandled error: %s", exc.__class__.__name__)
+    return JSONResponse(
+        {"error": "Something went wrong on the server. Try again in a moment."},
+        status_code=500,
+    )
 
 
 @app.get("/health")
@@ -271,25 +270,61 @@ def me(ident: Identity = Depends(identity_dep)):
 
 
 @app.delete("/v1/me/data")
-def delete_mine(session: Session = Depends(get_session), ident: Identity = Depends(identity_dep)):
+def delete_mine(
+    response: Response,
+    session: Session = Depends(get_session),
+    ident: Identity = Depends(identity_dep),
+):
     wipe_identity(session, ident)
+    # Rotate the guest cookie so a wiped browser is a fresh session.
+    new_sid = secrets.token_urlsafe(24)
+    response.set_cookie(
+        COOKIE,
+        new_sid,
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+        max_age=_cookie_max_age(),
+        path="/",
+    )
     return {"ok": True}
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",", 1)[0].strip() or "unknown"
+    """Visitor IP for rate limits.
+
+    When PRAXIS_PROXY_SECRET is set, trust X-Praxis-Client-Ip only if the
+    request also carries that secret (Vercel rewrite). Otherwise use the
+    direct peer (Caddy → API on localhost), not raw X-Forwarded-For.
+    """
+    secret = settings.proxy_secret
+    if secret:
+        provided = request.headers.get("x-praxis-proxy-secret", "")
+        if provided and secrets.compare_digest(provided, secret):
+            client = (request.headers.get("x-praxis-client-ip") or "").strip()
+            if client:
+                return client.split(",", 1)[0].strip() or "unknown"
     return request.client.host if request.client else "unknown"
+
+
+def _limit(ident: Identity, request: Request, action: str, *, limit: int, window_s: float, ip_limit: int | None = None) -> None:
+    check_session_and_ip(ident.session_id, _client_ip(request), action, limit=limit, window_s=window_s, ip_limit=ip_limit)
+
+
+def _row_vals(rec: dict[str, Any], cols: list[str]) -> dict[str, str]:
+    return {c: "" if rec.get(c) is None else str(rec.get(c)) for c in cols}
+
+
+def _reject_oversize(raw: bytes) -> None:
+    if len(raw) > settings.max_upload_bytes:
+        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
+        raise HTTPException(413, f"File is too large ({mb} MB max).")
 
 
 def _store_dataset(session: Session, ident: Identity, filename: str, raw: bytes, request: Request) -> dict:
     purge_expired(session)
-    check_rate(ident.session_id, "upload", limit=4, window_s=60.0)
-    check_rate(_client_ip(request), "upload_ip", limit=8, window_s=60.0)
-    if len(raw) > settings.max_upload_bytes:
-        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
-        raise HTTPException(413, f"File is too large ({mb} MB max).")
+    _limit(ident, request, "upload", limit=4, window_s=60.0)
+    _reject_oversize(raw)
     from app.tables import preview_frame, read_csv
 
     df = read_csv(raw)
@@ -336,8 +371,7 @@ def create_job(
 ):
     purge_expired(session)
     abandon_orphaned_jobs(session)
-    check_rate(ident.session_id, "create_job", limit=3, window_s=300.0)
-    check_rate(_client_ip(request), "create_job_ip", limit=6, window_s=300.0)
+    _limit(ident, request, "create_job", limit=3, window_s=300.0)
     if active_job_count(session, ident) >= settings.max_active_jobs:
         raise HTTPException(429, "A search is already running for you. Wait for it to finish.")
     if global_active_job_count(session) >= settings.max_global_jobs:
@@ -345,8 +379,6 @@ def create_job(
     ds = get_owned_dataset(session, ident, body.dataset_id)
     if ds is None:
         raise HTTPException(404, "Unknown dataset.")
-    from app.fit_params import normalize_fit_params
-
     try:
         params = normalize_fit_params(body.params)
     except Exception as exc:
@@ -416,8 +448,7 @@ def profile_job(
     from app import fit_cache
     from app.fit import profile_for_constraints
 
-    check_rate(ident.session_id, "profile", limit=8, window_s=60.0)
-    check_rate(_client_ip(request), "profile_ip", limit=16, window_s=60.0)
+    _limit(ident, request, "profile", limit=8, window_s=60.0)
     job = get_owned_job(session, ident, job_id)
     if job is None:
         raise HTTPException(404, "Unknown job.")
@@ -453,7 +484,7 @@ def profile_job(
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     job.result_json = json.dumps(result)
-    job.search_document = search_blob(result, None)
+    job.search_document = job.label
     session.add(job)
     session.commit()
     return result
@@ -471,8 +502,7 @@ def match_count_job(
     from app import bases_store, fit_cache
     from app.fit import count_matching
 
-    check_rate(ident.session_id, "match_count", limit=40, window_s=60.0)
-    check_rate(_client_ip(request), "match_count_ip", limit=80, window_s=60.0)
+    _limit(ident, request, "match_count", limit=40, window_s=60.0)
     job = get_owned_job(session, ident, job_id)
     if job is None:
         raise HTTPException(404, "Unknown job.")
@@ -503,8 +533,7 @@ def export_timbertrek(
     from app import fit_cache
     from app.fit import profile_for_constraints
 
-    check_rate(ident.session_id, "timbertrek", limit=4, window_s=120.0)
-    check_rate(_client_ip(request), "timbertrek_ip", limit=8, window_s=120.0)
+    _limit(ident, request, "timbertrek", limit=4, window_s=120.0)
     job = get_owned_job(session, ident, job_id)
     if job is None:
         raise HTTPException(404, "Unknown job.")
@@ -613,14 +642,11 @@ async def score_job_batch(
     ident: Identity = Depends(identity_dep),
 ):
     """Score every row of an uploaded CSV; return the CSV with decision columns added."""
-    check_rate(ident.session_id, "score_batch", limit=4, window_s=120.0)
-    check_rate(_client_ip(request), "score_batch_ip", limit=8, window_s=120.0)
+    _limit(ident, request, "score_batch", limit=4, window_s=120.0)
     _, result = _succeeded_job_result(session, ident, job_id)
     policy = freeze_policy(result, tree_id, _parse_str_list(banned, "banned"), _parse_str_list(keep, "keep"))
     raw = await file.read()
-    if len(raw) > settings.max_upload_bytes:
-        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
-        raise HTTPException(413, f"File is too large ({mb} MB max).")
+    _reject_oversize(raw)
     from app.tables import read_csv
 
     df = read_csv(raw)
@@ -631,7 +657,7 @@ async def score_job_batch(
     agrees: list[str] = []
     reasons: list[str] = []
     for rec in df.to_dict(orient="records"):
-        vals = {c: "" if rec.get(c) is None else str(rec.get(c)) for c in cols}
+        vals = _row_vals(rec, cols)
         out = score_policy(policy, vals)
         preds.append(out["prediction"])
         agrees.append(f"{out['agree']}/{out['n']}")
@@ -656,8 +682,7 @@ def preview_impact(
     ident: Identity = Depends(identity_dep),
 ):
     """Run the chosen rule over the original file: prediction rates overall and per group."""
-    check_rate(ident.session_id, "impact", limit=8, window_s=60.0)
-    check_rate(_client_ip(request), "impact_ip", limit=16, window_s=60.0)
+    _limit(ident, request, "impact", limit=8, window_s=60.0)
     job, result = _succeeded_job_result(session, ident, job_id)
     policy = freeze_policy(result, body.tree_id, body.banned, body.keep)
     # Agreement across the ensemble is not needed here; score the single tree.
@@ -674,7 +699,7 @@ def preview_impact(
     groups: dict[str, dict[str, int]] = {}
     records = df.head(settings.max_rows).to_dict(orient="records")
     for rec in records:
-        vals = {c: "" if rec.get(c) is None else str(rec.get(c)) for c in cols}
+        vals = _row_vals(rec, cols)
         pred = score_policy(policy, vals)["prediction"]
         overall[pred] = overall.get(pred, 0) + 1
         if group_col:

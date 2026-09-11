@@ -102,7 +102,6 @@ export type ScoreOut = {
   rules: string[];
   reason?: string[];
   tree_id?: number;
-  policy_id?: string;
 };
 
 export type ImpactGroup = {
@@ -121,9 +120,6 @@ export type ImpactOut = {
 };
 
 export type Policy = {
-  id?: string;
-  name?: string;
-  notes?: string;
   label?: string;
   class_names?: string[];
   tree: TreeProfile;

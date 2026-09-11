@@ -23,12 +23,10 @@ for _ancestor in Path(__file__).resolve().parents:
 
 from praxis import PRAXIS, ThresholdGuessBinarizer  # noqa: E402
 
+from app.fit_params import DEFAULT_FIT_ROWS, DEFAULT_MAX_TREES
 from app.trees import base_name, profile_paths
 
-FIT_ROWS = 2000
 JACCARD_PAIRS = 200
-# Cap how many matching trees we fully unpack after column constraints (best objective first).
-MAX_TREES = 2000
 
 
 @dataclass
@@ -206,8 +204,8 @@ def compile_table(
     depth_budget: int = 5,
     rashomon_mult: float = 0.05,
     lookahead_k: int = 1,
-    fit_rows: int = FIT_ROWS,
-    max_trees: int = MAX_TREES,
+    fit_rows: int = DEFAULT_FIT_ROWS,
+    max_trees: int = DEFAULT_MAX_TREES,
 ) -> tuple[dict, FittedBundle]:
     """Fit PRAXIS and return a shell result (no tree profiles yet) plus a live bundle."""
     if label_col not in df.columns:
@@ -314,7 +312,7 @@ def compile_table(
             "rashomon_mult": float(rashomon_mult),
             "lookahead_k": int(lookahead_k),
             "fit_rows": int(fit_rows),
-            "max_trees": int(max_trees if max_trees > 0 else MAX_TREES),
+            "max_trees": int(max_trees if max_trees > 0 else DEFAULT_MAX_TREES),
         },
     }
     shell = json.loads(json.dumps(shell))
@@ -358,7 +356,7 @@ def profile_for_constraints(
     """Walk trees in best-objective order; fully profile up to max_trees that match columns."""
     banned = list(banned or [])
     keep = list(keep or [])
-    cap = MAX_TREES if max_trees is None else (bundle.n_trees if max_trees <= 0 else max_trees)
+    cap = DEFAULT_MAX_TREES if max_trees is None else (bundle.n_trees if max_trees <= 0 else max_trees)
 
     trees: list[dict] = []
     scanned = 0

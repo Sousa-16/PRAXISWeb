@@ -49,6 +49,36 @@ export function useWorkshop() {
     setFitParamsState(clampFitParams(next));
   }
 
+  function clearJobState() {
+    setJob(null);
+    setBanned([]);
+    setKeep([]);
+    setTreeId(null);
+    setPage(1);
+    setRow({});
+    setScore(null);
+    setCompare([]);
+    setImpact(null);
+    setImpactCol(null);
+  }
+
+  function applyDataset(ds: DatasetPreview) {
+    setDataset(ds);
+    setLabel(ds.guessed_label);
+    clearJobState();
+    setStep(0);
+  }
+
+  function resetWorkshop() {
+    bootGen.current += 1;
+    setDataset(null);
+    setLabel("");
+    clearJobState();
+    setWarnOwn(false);
+    setStep(0);
+    clearWorkshopStore();
+  }
+
   const refreshMe = useCallback(() => {
     praxisWeb.me().then(setMe).catch(() => setMe(null));
   }, []);
@@ -69,31 +99,28 @@ export function useWorkshop() {
       praxisWeb
         .getJob(stored.jobId)
         .then((j) => {
-          if (bootGen.current === gen) setJob(j);
+          if (bootGen.current !== gen) return;
+          setJob(j);
         })
-        .catch(() => undefined);
+        .catch((err: unknown) => {
+          if (bootGen.current !== gen) return;
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!/unknown job|not found/i.test(msg)) return;
+          clearWorkshopStore();
+          setDataset(null);
+          setLabel("");
+          clearJobState();
+          setStep(0);
+          notifications.show({
+            color: "yellow",
+            message: "Your previous search expired. Load a table to start again.",
+          });
+        });
     }
   }, [refreshMe]);
 
   useEffect(() => {
-    const onStart = () => {
-      bootGen.current += 1;
-      setDataset(null);
-      setLabel("");
-      setJob(null);
-      setBanned([]);
-      setKeep([]);
-      setTreeId(null);
-      setPage(1);
-      setRow({});
-      setScore(null);
-      setWarnOwn(false);
-      setCompare([]);
-      setImpact(null);
-      setImpactCol(null);
-      setStep(0);
-      clearWorkshopStore();
-    };
+    const onStart = () => resetWorkshop();
     window.addEventListener(START_EVENT, onStart);
     return () => window.removeEventListener(START_EVENT, onStart);
   }, []);
@@ -258,12 +285,7 @@ export function useWorkshop() {
     setBusy(true);
     try {
       const ds = await praxisWeb.sample();
-      setDataset(ds);
-      setLabel(ds.guessed_label);
-      setJob(null);
-      setBanned([]);
-      setKeep([]);
-      setStep(0);
+      applyDataset(ds);
       notifications.show({
         title: "Sample email spam loaded",
         message: `${ds.n_rows} rows. Next: pick the label and search.`,
@@ -282,12 +304,7 @@ export function useWorkshop() {
     setBusy(true);
     try {
       const ds = await praxisWeb.upload(file);
-      setDataset(ds);
-      setLabel(ds.guessed_label);
-      setJob(null);
-      setBanned([]);
-      setKeep([]);
-      setStep(0);
+      applyDataset(ds);
     } catch (err) {
       notifications.show({ title: "Upload failed", message: String(err), color: "red" });
     } finally {
@@ -354,7 +371,21 @@ export function useWorkshop() {
     setImpactCol(null);
   }
 
-  async function downloadTimbertrekBest(expand = false) {
+  function resetConstraints() {
+    setBanned([]);
+    setKeep([]);
+    setMatchCount(result?.n_trees ?? null);
+    setMatchCounting(false);
+  }
+
+  function hideAllColumns() {
+    setBanned(columns);
+    setKeep([]);
+    setMatchCount(0);
+    setMatchCounting(true);
+  }
+
+  async function downloadTimbertrekBest() {
     if (!job || !result) return;
     setBusy(true);
     try {
@@ -363,7 +394,7 @@ export function useWorkshop() {
         banned,
         keep,
         max_trees: 2000,
-        expand: true,
+        expand: leftover.length === 0,
       });
       downloadBlob(out.filename, out.blob);
       notifications.show({
@@ -381,20 +412,18 @@ export function useWorkshop() {
   async function wipe() {
     if (!window.confirm("Delete every upload and search for this browser?")) return;
     await praxisWeb.deleteMine();
-    setDataset(null);
-    setJob(null);
-    setBanned([]);
-    setKeep([]);
-    setScore(null);
-    clearWorkshopStore();
+    resetWorkshop();
     refreshMe();
     notifications.show({ title: "Deleted", message: "Your rows on this server are gone.", color: "copper" });
   }
+
+  const maxStep = !dataset ? 0 : !result ? 0 : !selected ? 2 : 3;
 
   return {
     me,
     step,
     setStep,
+    maxStep,
     dataset,
     label,
     setLabel,
@@ -424,8 +453,8 @@ export function useWorkshop() {
     matchCount,
     matchCounting,
     matchCountStale,
-    setMatchCount,
-    setMatchCounting,
+    resetConstraints,
+    hideAllColumns,
     ruleSort,
     setRuleSort,
     result,
@@ -454,9 +483,5 @@ export function useWorkshop() {
     resetImpact,
     downloadTimbertrekBest,
     wipe,
-    setBanned,
-    setKeep,
   };
 }
-
-export type WorkshopApi = ReturnType<typeof useWorkshop>;

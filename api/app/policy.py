@@ -127,7 +127,6 @@ def score_policy(policy: dict, row: dict[str, Any]) -> dict:
         "rules": tree.get("rules") or [],
         "reason": [explain_step(step) for step in path],
         "tree_id": tree.get("id"),
-        "policy_id": policy.get("id"),
     }
 
 
@@ -142,18 +141,3 @@ def score_job(
     return score_policy(policy, row)
 
 
-def search_blob(job_result: dict | None, policy: dict | None) -> str:
-    parts: list[str] = []
-    if job_result:
-        parts.append(str(job_result.get("label") or ""))
-        for feat in job_result.get("features") or []:
-            parts.append(str(feat.get("id") or ""))
-        for tree in job_result.get("trees") or []:
-            parts.extend(tree.get("rules") or [])
-            parts.extend(tree.get("bases") or [])
-    if policy:
-        parts.append(str(policy.get("label") or ""))
-        tree = policy.get("tree") or {}
-        parts.extend(tree.get("rules") or [])
-        parts.extend(tree.get("bases") or [])
-    return " ".join(parts)

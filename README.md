@@ -59,7 +59,7 @@ Copy [api/.env.example](api/.env.example) and [web/.env.example](web/.env.exampl
 
 ## Deploy
 
-Overview: [DEPLOYMENT.md](DEPLOYMENT.md). OCI + Vercel ($0): [DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md). Stable API hostname: [ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md).
+Overview: [DEPLOYMENT.md](DEPLOYMENT.md). OCI + Vercel ($0): [DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md). Stable API hostname: [ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md). Backups: [ops/BACKUP.md](ops/BACKUP.md).
 
 ## License
 

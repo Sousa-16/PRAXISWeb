@@ -2,8 +2,11 @@
 # Frontend runs on Vercel — do not start the web service here.
 #
 # Usage:
-#   cp api/.env.example api/.env   # edit for production
+#   cp api/.env.example api/.env   # edit FRONTEND_ORIGIN, PRAXIS_PROXY_SECRET
 #   docker compose -f docker-compose.oci.yml up -d --build
+#
+# DATABASE_URL is set here so SQLite lands on the named volume, even if
+# api/.env still has the local-dev relative path.
 
 services:
   api:
@@ -17,9 +20,22 @@ services:
     environment:
       COOKIE_SECURE: "1"
       BASES_CACHE_DIR: data/bases_cache
+      DATABASE_URL: sqlite:////app/praxis_data/praxis_web.db
     volumes:
       - api_data:/app/data/bases_cache
       - api_db:/app/praxis_data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=4)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
 volumes:
   api_data:

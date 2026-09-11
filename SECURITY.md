@@ -34,6 +34,11 @@ These defaults live in `api/app/config.py` and can be overridden in `api/.env`.
 | TimberTrek / score CSV | 4 / session / 2 min | Caps expand and batch score |
 | Guest TTL | 24 hours | Auto-deletes leftover data |
 
+**IP limits** need the visitor’s real address. The Next.js proxy on Vercel sends
+`X-Praxis-Client-Ip` when `PRAXIS_PROXY_SECRET` matches on both Vercel and the
+API. Without that secret, IP buckets collapse to the proxy peer (localhost from
+Caddy) and **session + `MAX_GLOBAL_JOBS`** are the real abuse boundary.
+
 If a third search starts while two are running, the API returns **429**
 (“The demo is busy…”). Extra fits also wait on an in-process semaphore so
 threads cannot pile up unbounded.
@@ -56,9 +61,10 @@ deploy settings.
 2. SSH: key-only login (no password). Optional: `fail2ban` on port 22.
 3. OCI security list: **22, 80, 443** only. Do **not** open **8765**.
 4. `FRONTEND_ORIGIN` must exactly match the Vercel URL; `COOKIE_SECURE=1`.
-5. Keep `api/.env` (including `DATABASE_URL`) on the VM only. SQLite is a file on that host.
+5. Keep `api/.env` (including `DATABASE_URL` and `PRAXIS_PROXY_SECRET`) on the VM only. SQLite is a file on that host. Match the proxy secret on Vercel.
 6. Optional: ping `https://YOUR_API_HOST/health` with a free uptime checker.
-7. If abused: lower the env vars above, block IPs in iptables, or stop the
+7. Optional: run [`ops/backup.sh`](ops/BACKUP.md) on a schedule and copy snapshots off the VM.
+8. If abused: lower the env vars above, block IPs in iptables, or stop the
    API container until it calms down.
 
 ## Docs vs live IPs

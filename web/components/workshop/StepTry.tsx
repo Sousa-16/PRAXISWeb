@@ -36,7 +36,7 @@ type Props = {
   onContinue: () => void;
   banned: string[];
   keep: string[];
-  onTimbertrekBest?: (expand?: boolean) => void;
+  onTimbertrekBest?: () => void;
 };
 
 export function StepTry({

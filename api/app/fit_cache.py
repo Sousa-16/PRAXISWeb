@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import gzip
+import logging
 import pickle
 from typing import Any
 
 from app.config import settings
+
+log = logging.getLogger(__name__)
 
 _CACHE: dict[str, Any] = {}
 
@@ -16,16 +19,32 @@ def _disk_path(job_id: str):
 
 
 def persist(job_id: str, bundle: Any) -> None:
-    """Best-effort pickle so Browse/profile can survive an API restart."""
+    """Pickle so Browse / TimberTrek expand can survive an API restart."""
+    cache = settings.bases_cache_path()
+    cache.mkdir(parents=True, exist_ok=True)
+    dest = _disk_path(job_id)
+    tmp = dest.with_suffix(".pkl.tmp")
     try:
-        cache = settings.bases_cache_path()
-        cache.mkdir(parents=True, exist_ok=True)
-        tmp = _disk_path(job_id).with_suffix(".pkl.tmp")
         with gzip.open(tmp, "wb") as fh:
             pickle.dump(bundle, fh, protocol=pickle.HIGHEST_PROTOCOL)
-        tmp.replace(_disk_path(job_id))
+        tmp.replace(dest)
+        return
     except Exception:
-        pass
+        log.exception("gzip pickle failed for job %s; trying uncompressed", job_id)
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+    try:
+        with open(tmp, "wb") as fh:
+            pickle.dump(bundle, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        tmp.replace(dest)
+    except Exception:
+        log.exception("Could not persist fit bundle for job %s", job_id)
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def _load_disk(job_id: str) -> Any | None:
@@ -36,7 +55,12 @@ def _load_disk(job_id: str) -> Any | None:
         with gzip.open(path, "rb") as fh:
             return pickle.load(fh)
     except Exception:
-        return None
+        try:
+            with open(path, "rb") as fh:
+                return pickle.load(fh)
+        except Exception:
+            log.exception("Could not load fit bundle for job %s", job_id)
+            return None
 
 
 def drop_disk(job_id: str) -> None:
@@ -45,7 +69,7 @@ def drop_disk(job_id: str) -> None:
         if path.is_file():
             path.unlink()
     except Exception:
-        pass
+        log.exception("Could not delete fit bundle for job %s", job_id)
 
 
 def put(job_id: str, bundle: Any) -> None:
@@ -70,3 +94,18 @@ def pop(job_id: str) -> Any | None:
 
 def clear() -> None:
     _CACHE.clear()
+
+
+def warm_from_disk() -> int:
+    """Load pickle sidecars into memory after an API restart. Returns how many loaded."""
+    cache = settings.bases_cache_path()
+    if not cache.is_dir():
+        return 0
+    n = 0
+    for path in cache.glob("*.bundle.pkl"):
+        job_id = path.name[: -len(".bundle.pkl")]
+        if get(job_id) is not None:
+            n += 1
+    if n:
+        log.info("Reloaded %s fitted model(s) from disk", n)
+    return n

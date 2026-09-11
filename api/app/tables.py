@@ -8,7 +8,24 @@ import pandas as pd
 
 
 def read_csv(raw: bytes) -> pd.DataFrame:
-    return pd.read_csv(io.BytesIO(raw))
+    if not raw or not raw.strip():
+        raise ValueError("The file is empty.")
+    try:
+        df = pd.read_csv(io.BytesIO(raw))
+    except UnicodeDecodeError:
+        try:
+            df = pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+        except Exception as exc:
+            raise ValueError("Could not read that CSV. Use a UTF-8 comma-separated file.") from exc
+    except pd.errors.EmptyDataError as exc:
+        raise ValueError("The CSV has no columns.") from exc
+    except pd.errors.ParserError as exc:
+        raise ValueError("Could not parse that CSV. Check commas, quotes, and the header row.") from exc
+    except Exception as exc:
+        raise ValueError("Could not read that CSV. Use a comma-separated file with a header row.") from exc
+    if df.shape[1] < 2:
+        raise ValueError("Need a header row and at least one feature column plus a label.")
+    return df
 
 
 def guess_label(columns: list[str]) -> str:

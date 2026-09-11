@@ -12,7 +12,6 @@ from app.db import engine
 from app.fit import compile_table
 from app.fit_params import normalize_fit_params
 from app.models import Dataset, Job
-from app.policy import search_blob
 from app.tables import read_csv
 
 
@@ -43,7 +42,7 @@ def run_job(job_id: str) -> None:
             # the shell + NPZ bases index so Set Tree Rules match counts stay cheap.
             job.status = "succeeded"
             job.result_json = json.dumps(result)
-            job.search_document = search_blob(result, None)
+            job.search_document = job.label
             job.error = None
             job.finished_at = datetime.now(timezone.utc)
         except Exception as exc:

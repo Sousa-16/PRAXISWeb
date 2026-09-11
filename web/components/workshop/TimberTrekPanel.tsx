@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Group, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import type { JobResult } from "@/lib/types";
 
 type Props = {
@@ -9,7 +9,7 @@ type Props = {
   banned: string[];
   keep: string[];
   busy: boolean;
-  onTimbertrek: (expand?: boolean) => void;
+  onTimbertrek: () => void;
 };
 
 export function TimberTrekPanel({
@@ -34,10 +34,12 @@ export function TimberTrekPanel({
         <Text span fw={600}>
           2,000
         </Text>{" "}
-        (or 5,000) best-objective trees that still fit your Set Tree Rules choices
+        trees that still fit your Set Tree Rules choices
         {constraintNote}. You currently have {leftoverCount.toLocaleString()} profiled survivors;
-        PRAXIS found {result.n_trees.toLocaleString()} near-optimal trees in total. Expand walks the
-        full set for more matches (needs the fitted job in memory). Upload the JSON on their{" "}
+        PRAXIS found {result.n_trees.toLocaleString()} near-optimal trees in total. When row
+        counts are missing (for example after a cold restart without a reloaded fit), the JSON may
+        use approximate leaf sizes so TimberTrek still bins — re-run Find good rules for exact
+        counts. Upload the JSON on their{" "}
         <Text
           span
           component="a"
@@ -51,24 +53,9 @@ export function TimberTrekPanel({
         </Text>{" "}
         tab (use the file picker).
       </Text>
-      <Group wrap="wrap" className="cta-stack">
-        <Button
-          variant="light"
-          loading={busy}
-          disabled={!leftoverCount}
-          onClick={() => onTimbertrek(false)}
-        >
-          Download 2,000 matching
-        </Button>
-        <Button
-          variant="default"
-          loading={busy}
-          disabled={!leftoverCount}
-          onClick={() => onTimbertrek(true)}
-        >
-          Expand to 5,000 matching
-        </Button>
-      </Group>
+      <Button variant="light" loading={busy} disabled={!leftoverCount} onClick={onTimbertrek}>
+        Download matching trees
+      </Button>
     </div>
   );
 }

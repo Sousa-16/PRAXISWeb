@@ -26,3 +26,16 @@ def check_rate(session_id: str, action: str, *, limit: int | None = None, window
         if len(q) >= max_hits:
             raise HTTPException(429, "Too many requests. Wait a moment and try again.")
         q.append(now)
+
+
+def check_session_and_ip(
+    session_id: str,
+    ip: str,
+    action: str,
+    *,
+    limit: int,
+    window_s: float,
+    ip_limit: int | None = None,
+) -> None:
+    check_rate(session_id, action, limit=limit, window_s=window_s)
+    check_rate(ip, f"{action}_ip", limit=ip_limit if ip_limit is not None else limit * 2, window_s=window_s)

@@ -90,16 +90,20 @@ nano api/.env   # edit values below
 **Minimum `api/.env` for production:**
 
 ```env
-# SQLite on the VM (same default as local). The API opens this file; there is no remote DB.
-DATABASE_URL=sqlite:///./praxis_web.db
+# SQLite path is overridden by docker-compose.oci.yml to the named volume:
+# sqlite:////app/praxis_data/praxis_web.db
+# Keep a local-style URL here only if you run uvicorn without Compose.
 
 FRONTEND_ORIGIN=https://praxis-web-nu.vercel.app
 COOKIE_SECURE=1
 
+# Same value as Vercel env PRAXIS_PROXY_SECRET (visitor IP rate limits)
+PRAXIS_PROXY_SECRET=
+
 BASES_CACHE_DIR=data/bases_cache
 ```
 
-`docker-compose.oci.yml` loads this file with `env_file`. Do not point `DATABASE_URL` at a third-party host unless you intend to.
+`docker-compose.oci.yml` loads this file with `env_file` and **forces** `DATABASE_URL` onto `/app/praxis_data` so guest rows survive container rebuilds. Generate a proxy secret once and set it on both the VM and Vercel.
 
 Start API (bound to localhost only — tunnel or Caddy will expose HTTPS):
 
@@ -153,9 +157,12 @@ every restart** — not suitable for a public site. Use DuckDNS + Caddy instead.
 
 | Variable | Value |
 |----------|--------|
-| `API_PROXY_TARGET` | `https://your-tunnel-or-domain-url` (no trailing slash) |
+| `API_PROXY_TARGET` | `https://praxis-web-api.duckdns.org` (no trailing slash) |
+| `PRAXIS_PROXY_SECRET` | Same random string as in the VM `api/.env` |
 
 3. Push a commit or redeploy Vercel.
+
+The Next.js app proxies `/v1/*` and `/health` through route handlers that attach the visitor IP when the secret matches.
 
 ---
 
@@ -167,15 +174,29 @@ git pull
 docker compose -f docker-compose.oci.yml up -d --build
 ```
 
+If you previously used the old SQLite path (`./praxis_web.db` inside the container), copy it onto the named volume once before visitors lose rows:
+
+```bash
+cid=$(docker compose -f docker-compose.oci.yml ps -q api)
+docker cp "$cid:/app/praxis_web.db" /tmp/praxis_web.db 2>/dev/null || true
+docker compose -f docker-compose.oci.yml up -d --build
+cid=$(docker compose -f docker-compose.oci.yml ps -q api)
+if [ -f /tmp/praxis_web.db ]; then
+  docker cp /tmp/praxis_web.db "$cid:/app/praxis_data/praxis_web.db"
+  docker compose -f docker-compose.oci.yml restart api
+fi
+```
+
 ---
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| Vercel can’t reach API | Check tunnel/Caddy is running; `API_PROXY_TARGET` is HTTPS |
+| Vercel can’t reach API | Check Caddy is running; `API_PROXY_TARGET` is HTTPS |
 | CORS / cookie errors | `FRONTEND_ORIGIN` must exactly match Vercel URL |
-| `/health` `database: false` | Check `DATABASE_URL` in `api/.env`; SQLite path must be writable in the container |
+| `/health` `database: false` | Check Compose mounts `api_db` at `/app/praxis_data` and SQLite is writable there |
+| IP rate limits never trip | Matching `PRAXIS_PROXY_SECRET` on Vercel and the VM |
 | PRAXIS fit OOM | Use Ampere 12 GB shape, not 1 GB AMD micro |
 | Tunnel URL changed | Use [DuckDNS + Caddy](ops/CADDY_DUCKDNS.md); update Vercel `API_PROXY_TARGET` once |
 

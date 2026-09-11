@@ -22,6 +22,9 @@ class Settings:
     max_active_jobs: int = int(os.environ.get("MAX_ACTIVE_JOBS", "1"))
     max_global_jobs: int = int(os.environ.get("MAX_GLOBAL_JOBS", "2"))
     bases_cache_dir: str = os.environ.get("BASES_CACHE_DIR", "data/bases_cache")
+    # Shared secret so Vercel can forward the real visitor IP (X-Praxis-Client-Ip).
+    # Empty = trust only direct peer / Caddy (local and unconfigured deploys).
+    proxy_secret: str = os.environ.get("PRAXIS_PROXY_SECRET", "").strip()
     object_storage_backend: str = os.environ.get("OBJECT_STORAGE_BACKEND", "local").strip().lower()
     s3_endpoint: str = os.environ.get("S3_ENDPOINT", "").strip()
     s3_bucket: str = os.environ.get("S3_BUCKET", "").strip()

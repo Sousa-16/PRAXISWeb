@@ -4,7 +4,7 @@ import type { Policy } from "./types";
 export function pythonScorer(policy: Policy): string {
   const doc = JSON.stringify(policy, null, 2);
   return `#!/usr/bin/env python3
-"""Standalone scorer for a PRAXIS Web rule${policy.id ? ` (${policy.id})` : ""}. Stdlib only: no server, no ML stack.
+"""Standalone scorer for a PRAXIS Web rule${policy.label ? ` (${policy.label})` : ""}. Stdlib only: no server, no ML stack.
 
 Usage:
   python score_rule.py rows.csv > scored.csv

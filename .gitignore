@@ -4,6 +4,9 @@ api/.venv/
 api/.env
 api/praxis_web.db
 api/swapout.db
+api/test_*.db
+api/*.db
+!api/data/
 api/__pycache__/
 api/**/__pycache__/
 api/.pytest_cache/

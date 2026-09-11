@@ -17,3 +17,6 @@ export const COMPILE_MSGS = [
   "Checking accuracy on unseen rows…",
   "Comparing how similar the rules are…",
 ] as const;
+
+export const GUEST_FOOTER =
+  "Uploads are tied to this browser. Guest data expires after {hours} hours. Do not upload secrets on the web app.";

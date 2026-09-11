@@ -1,16 +1,11 @@
 import path from "path";
 import type { NextConfig } from "next";
 
-const api = process.env.API_PROXY_TARGET || "http://127.0.0.1:8765";
+// /v1/* and /health are handled by app route proxies (web/app/v1, web/app/health)
+// so Vercel can forward the visitor IP to the OCI API.
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
-  async rewrites() {
-    return [
-      { source: "/health", destination: `${api}/health` },
-      { source: "/v1/:path*", destination: `${api}/v1/:path*` },
-    ];
-  },
 };
 
 export default nextConfig;
