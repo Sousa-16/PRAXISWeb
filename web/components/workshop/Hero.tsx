@@ -22,8 +22,8 @@ export function Hero({ busy, onSample, onUpload }: Props) {
           PRAXIS <span>Web</span>
         </h1>
         <p className="hero-line rise rise-1">
-          Find short, readable if-then rules from your table—and score new rows with the rule you
-          choose.
+          Fast, memory-efficient, and transparent AI Decision Automation tailored to your exact
+          constraints.
         </p>
         <p className="hero-sub rise rise-2">
           Powered by PRAXIS, which searches a set of near-best decision trees so you can compare
@@ -52,7 +52,7 @@ export function Hero({ busy, onSample, onUpload }: Props) {
           For many datasets there is not one “best” model, but many. The collection of these many
           decision trees that predict almost equally well is what is called the{" "}
           <strong>Rashomon Set</strong>. That set is gold for real decisions that need to be explained
-          and monitored in industries such as law, business, and healthcare (fairness, which columns you
+          and monitored in industries such as law and healthcare (fairness, which columns you
           are allowed to use later, domain rules); however, computing these transparent models used to
           take huge memory and runtime. Developed by researchers from Duke University and the University
           of British Columbia, <strong>PRAXIS</strong> (Proxy-guided Rashomon set ApproXimatIonS) is an
