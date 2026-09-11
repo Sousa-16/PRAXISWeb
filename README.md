@@ -6,7 +6,7 @@ Workshop UI and API for PRAXIS Rashomon-set decision trees.
 
 - **web/** — Next.js frontend (Vercel)
 - **api/** — FastAPI backend (OCI / Docker)
-- **ops/** — DuckDNS + Caddy runbook (live) and optional Cloudflare tunnel notes
+- **ops/** — DuckDNS + Caddy runbook for the stable API URL
 
 ## Workshop flow
 
@@ -21,4 +21,4 @@ See [privacy](web/app/privacy/page.tsx) copy on `/privacy`. Licensed under [MIT]
 
 ## Deploy
 
-See [DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md) for **OCI + Vercel** ($0), [ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md) for the stable API URL, or [DEPLOYMENT.md](DEPLOYMENT.md) for Render and local Docker.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the overview, [DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md) for OCI + Vercel ($0), and [ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md) for the stable API hostname.

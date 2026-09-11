@@ -5,8 +5,8 @@ Stack: **Vercel** (frontend) + **OCI Ampere VM** (API) + **Supabase** (free Post
 ```mermaid
 flowchart LR
   User --> Vercel
-  Vercel -->|API_PROXY_TARGET HTTPS| Tunnel[Cloudflare Tunnel or Caddy]
-  Tunnel --> API[Docker API :8765]
+  Vercel -->|API_PROXY_TARGET HTTPS| Caddy[Caddy on VM]
+  Caddy --> API[Docker API :8765]
   API --> Supabase[(Supabase Postgres)]
 ```
 
@@ -18,7 +18,7 @@ flowchart LR
 |-------|---------|------|
 | Frontend | Vercel | Free |
 | API | OCI Always Free VM | Free |
-| HTTPS to API | Cloudflare Tunnel (recommended) | Free |
+| HTTPS to API | DuckDNS + Caddy ([runbook](ops/CADDY_DUCKDNS.md)) | Free |
 | Database | Supabase Postgres | Free tier |
 
 ---
@@ -44,9 +44,9 @@ flowchart LR
 | Source | Port | Purpose |
 |--------|------|---------|
 | `0.0.0.0/0` | `22` | SSH |
-| `0.0.0.0/0` | `80`, `443` | Only if using Caddy + domain |
+| `0.0.0.0/0` | `80`, `443` | Caddy HTTPS (DuckDNS) |
 
-For **Cloudflare Tunnel**, you do **not** need to expose port 8765 publicly.
+Port **8765** stays on `127.0.0.1` only — Caddy proxies public 443 to it.
 
 **On the VM** (Ubuntu often has `iptables` too):
 
@@ -121,36 +121,26 @@ docker compose -f docker-compose.oci.yml logs -f api
 
 ---
 
-## Part 4 — HTTPS (pick one)
+## Part 4 — HTTPS for the API
 
 Vercel needs an **HTTPS** URL for `API_PROXY_TARGET`.
 
-### Option A — Cloudflare Tunnel (easiest, no domain)
+### Recommended — Caddy + DuckDNS (stable, no paid domain)
+
+See **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)**. Live hostname:
+`https://praxis-web-api.duckdns.org` → Caddy on the VM → `localhost:8765`.
+
+Set Vercel `API_PROXY_TARGET` once. Open TCP **80** and **443** in the OCI
+security list and on the VM iptables.
+
+### Alternative — Cloudflare quick tunnel (testing only)
 
 ```bash
-curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb -o cloudflared.deb
-# Use cloudflared-linux-amd64.deb if your instance is x86, not Ampere
-sudo dpkg -i cloudflared.deb
-
 cloudflared tunnel --url http://127.0.0.1:8765
 ```
 
-Copy the `https://….trycloudflare.com` URL.  
-**Note:** Quick tunnels change URL on restart. For production, use **[Option B — Caddy + DuckDNS](ops/CADDY_DUCKDNS.md)** (live) or a **[named Cloudflare tunnel](ops/NAMED_TUNNEL.md)** if you have a Cloudflare domain.
-
-### Option A2 — Named Cloudflare tunnel (stable URL)
-
-See **[ops/NAMED_TUNNEL.md](ops/NAMED_TUNNEL.md)** and `ops/cloudflared-praxis-api.service`.
-Creates a fixed hostname you can set once in Vercel `API_PROXY_TARGET`.
-
-### Option B — Caddy + DuckDNS (stable URL, no paid domain)
-
-Recommended for a public site that should stay up across VM reboots.
-
-See **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)**. Summary: free hostname
-`https://praxis-web-api.duckdns.org` → Caddy on the VM → `localhost:8765`. Set
-Vercel `API_PROXY_TARGET` once. Open TCP **80** and **443** in the OCI security
-list and on the VM iptables.
+Copy the `https://….trycloudflare.com` URL. **Quick tunnels change hostname on
+every restart** — not suitable for a public site. Use DuckDNS + Caddy instead.
 
 ---
 

@@ -1,8 +1,11 @@
 # PRAXIS Web deployment
 
-**Recommended ($0):** [OCI + Vercel + Supabase](DEPLOYMENT_OCI.md)
+**Live stack ($0):** Vercel frontend + OCI API + DuckDNS/Caddy HTTPS + Supabase Postgres.
 
-Also documented: Render, local Docker, Fly.io.
+| Guide | Use for |
+|-------|---------|
+| **[DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md)** | Oracle VM, Docker API, Supabase, Vercel env vars |
+| **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)** | Stable API hostname (production) |
 
 ```mermaid
 flowchart TB
@@ -10,145 +13,140 @@ flowchart TB
     NextApp["Next.js (web/)"]
   end
   subgraph oci [OCI Always Free]
-    API[FastAPI Docker]
+    Caddy[Caddy HTTPS]
+    API[FastAPI Docker :8765]
+    Caddy --> API
   end
-  subgraph supabase [Supabase optional]
-    PG[Postgres]
+  subgraph supabase [Supabase]
+    PG[(Postgres)]
   end
   User --> NextApp
-  NextApp -->|API_PROXY_TARGET| API
+  NextApp -->|API_PROXY_TARGET| Caddy
   API --> PG
 ```
 
----
+**Live URLs (example):**
 
-## Quick start: OCI + Vercel
+- Frontend: `https://praxis-web-nu.vercel.app`
+- API (backend only): `https://praxis-web-api.duckdns.org`
 
-See **[DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md)** for the full Oracle Cloud guide (Ampere VM, Docker API, Cloudflare Tunnel, Supabase).
-
-Summary:
-
-1. OCI Ampere VM (2 OCPU, 12 GB RAM) → `docker compose -f docker-compose.oci.yml up -d --build`
-2. Cloudflare Tunnel → HTTPS URL for the API
-3. Vercel root `web`, `API_PROXY_TARGET` = tunnel URL
-4. Supabase free Postgres in `api/.env` `DATABASE_URL`
+Visitors only see the Vercel URL. Next.js rewrites `/v1/*` to `API_PROXY_TARGET`.
 
 ---
 
-## Quick start: Render + Vercel
+## Quick start: OCI + Vercel (recommended)
 
-### Step 1 — Push code to GitHub
+1. **OCI** — Ampere VM, `docker compose -f docker-compose.oci.yml up -d --build` ([full guide](DEPLOYMENT_OCI.md))
+2. **HTTPS** — DuckDNS + Caddy on the VM ([full guide](ops/CADDY_DUCKDNS.md))
+3. **Vercel** — root directory `web`, `API_PROXY_TARGET` = your Caddy HTTPS URL (no trailing slash)
+4. **Supabase** — `DATABASE_URL` in `api/.env` (transaction pooler, port 6543)
+5. **CORS/cookies** — `FRONTEND_ORIGIN` on the API must exactly match the Vercel URL
 
-Repo: **Sousa-16/PRAXISWeb** (only the `WebApp` folder contents).
+**Ship loop after setup:**
 
-```bash
-cd ~/PRAXIS/WebApp
-git push -u origin main
-```
-
-### Step 2 — Deploy API on Render
-
-1. Go to [render.com](https://render.com) → sign in with GitHub.
-2. **New** → **Blueprint**.
-3. Connect **Sousa-16/PRAXISWeb**.
-4. Render reads [`render.yaml`](render.yaml) and creates:
-   - **praxis-api** (Docker web service)
-   - **praxis-db** (Postgres)
-5. When prompted, set:
-   - `FRONTEND_ORIGIN` → leave blank for now; set after Vercel deploy, e.g. `https://your-app.vercel.app`
-6. Click **Apply**. Wait for deploy (first build ~5–10 min).
-7. Copy the API URL, e.g. `https://praxis-api.onrender.com`.
-8. Test: open `https://praxis-api.onrender.com/health` → `"ok": true`.
-
-**Manual deploy (no Blueprint):**
-
-1. **New** → **Web Service** → connect repo.
-2. **Root Directory:** leave empty (repo root).
-3. **Language:** Docker.
-4. **Dockerfile Path:** `api/Dockerfile`.
-5. **Docker Context:** `api`.
-6. **Plan:** Starter (recommended; PRAXIS fits need RAM).
-7. Add env vars (see table below).
-8. **Health Check Path:** `/health`.
-
-| Render env var | Value |
-|----------------|--------|
-| `DATABASE_URL` | From Render Postgres **Internal** URL, or Supabase pooler URL |
-| `FRONTEND_ORIGIN` | Your Vercel URL (set after step 3) |
-| `COOKIE_SECURE` | `1` |
-
-**Note:** Render free tier spins down when idle and has limited RAM. Use **Starter** for demos with real PRAXIS fits.
-
-### Step 3 — Deploy frontend on Vercel
-
-1. [vercel.com](https://vercel.com) → **Add Project** → import **Sousa-16/PRAXISWeb**.
-2. **Root Directory:** `web` ← important.
-3. **Environment variables:**
-
-| Variable | Value |
-|----------|--------|
-| `API_PROXY_TARGET` | `https://praxis-api.onrender.com` (your Render URL, no trailing slash) |
-
-4. **Deploy**.
-
-### Step 4 — Link frontend and API
-
-1. Copy your Vercel URL, e.g. `https://praxis-web.vercel.app`.
-2. In **Render** → **praxis-api** → **Environment** → set:
-   - `FRONTEND_ORIGIN` = your Vercel URL
-3. **Save** (triggers redeploy).
-4. Open Vercel URL → try **Use Sample Email Spam Detection**.
-
----
-
-## Database options
-
-| Option | Where to set `DATABASE_URL` |
-|--------|----------------------------|
-| **Render Postgres** | Render dashboard → database → **Internal Database URL** (on API service) |
-| **Supabase Postgres** | Supabase → Database → **Transaction pooler** URI (port 6543) |
-
-Tables are created automatically on API startup (Alembic).
+| Changed | Action |
+|---------|--------|
+| `web/` | `git push` → Vercel redeploys automatically |
+| `api/` | SSH to VM → `git pull` or rsync → `docker compose -f docker-compose.oci.yml up -d --build api` |
 
 ---
 
 ## Local development
+
+**Docker (API + web):**
 
 ```bash
 cd WebApp
 docker compose up --build
 ```
 
-- Web: http://localhost:3000  
-- API: http://localhost:8765  
+- Web: http://localhost:3000
+- API: http://localhost:8765
 
-Or without Docker:
+**Without Docker:**
 
 ```bash
 # terminal 1
 cd api && uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+
 # terminal 2
-cd web && npm run dev
+cd web && npm ci && npm run dev
 ```
+
+Local web uses `API_PROXY_TARGET=http://127.0.0.1:8765` (see `web/.env.example`).
+
+---
+
+## Database
+
+Set `DATABASE_URL` in `api/.env`:
+
+| Option | Notes |
+|--------|--------|
+| **Supabase Postgres** | Recommended for production (free tier). Use the **transaction pooler** URI (port 6543). |
+| **SQLite** | Default in local `docker-compose.yml` only. |
+
+Alembic migrations run on API startup.
 
 ---
 
 ## Health check
 
-`GET /health` on the API returns `database`, `storage`, `auth`, and `ok`.
+`GET /health` on the API returns:
+
+| Field | Meaning |
+|-------|---------|
+| `ok` | `true` when database and storage are ready |
+| `database` | Postgres/SQLite reachable |
+| `storage` | NPZ cache directory writable |
+| `job_queue` | Always `thread` (in-process fits) |
+
+Example: `curl https://praxis-web-api.duckdns.org/health`
 
 ---
 
-## Limitations
+## After API restart
 
-- **In-memory fit cache** is lost when the API restarts. Set Tree Rules match counts can still use the NPZ bases index. **Browse Trees** needs a saved profile from a prior Continue (same bans/keeps), or **Find good rules** again. TimberTrek expand needs the live fit.
-- **Ephemeral disk** on Render: match-count NPZ cache may not survive redeploys unless you add a Render disk (paid) or S3 storage (see `api/.env.example`).
-- CSV bytes live in Postgres — fine for demo sizes.
+- **Set Tree Rules** match counts can use the saved NPZ bases index.
+- **Browse Trees** can reuse a saved profile when bans/keeps match the last Continue; otherwise run **Find good rules** again.
+- **TimberTrek expand** may need the live fit (pickle sidecar helps Browse, not always expand).
 
 ---
 
-## Alternatives
+## Alternative: Render + Vercel
 
-- **Fly.io:** see [`api/fly.toml`](api/fly.toml)
-- **Railway:** same Docker image, set `PORT` from platform
-- **Local only:** no Vercel or Render required
+Use this only if you prefer managed hosting over OCI. The repo includes [`render.yaml`](render.yaml) for a Render Blueprint (API + Postgres).
+
+1. Render → **New** → **Blueprint** → connect **Sousa-16/PRAXISWeb**
+2. Set `FRONTEND_ORIGIN` after Vercel deploy
+3. Vercel `API_PROXY_TARGET` = your Render API URL (e.g. `https://praxis-api.onrender.com`)
+
+**Tradeoffs vs OCI:**
+
+| | OCI + DuckDNS | Render |
+|---|---|---|
+| Cost | $0 Always Free | Free tier sleeps; Starter plan for RAM |
+| Fit RAM | 12 GB Ampere | Starter recommended |
+| Disk | Persistent on VM | Ephemeral unless you add paid disk/S3 |
+| Ops | SSH + Docker | Dashboard only |
+
+See `api/.env.example` for optional S3 object storage on Render.
+
+---
+
+## Other platforms
+
+- **Fly.io** — [`api/fly.toml`](api/fly.toml) (Docker, persistent volume for NPZ cache)
+- **Railway** — same `api/Dockerfile`; set `PORT` from the platform
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Vercel UI loads, API calls fail | Check `API_PROXY_TARGET` is HTTPS; Caddy running; OCI security list allows 443 |
+| CORS / cookie errors | `FRONTEND_ORIGIN` must exactly match the Vercel URL |
+| `/health` `database: false` | Check `DATABASE_URL`; Supabase pooler not paused |
+| PRAXIS fit OOM | OCI: use Ampere 12 GB; Render: use Starter plan |
+| API URL changed after reboot | Use [DuckDNS + Caddy](ops/CADDY_DUCKDNS.md), not a quick Cloudflare tunnel |
