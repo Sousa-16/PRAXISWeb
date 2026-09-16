@@ -256,6 +256,43 @@ def test_score_policy_unit_only():
     assert out["n"] == 1
 
 
+def test_encode_row_falls_back_to_other_category():
+    from app.encode import OTHER_CATEGORY, encode_row
+
+    maps = {
+        "columns": ["make"],
+        "kind": {"make": "categorical"},
+        "codes": {"make": {"toyota": 0, OTHER_CATEGORY: 1}},
+    }
+    assert encode_row({"make": "toyota"}, maps)["make"] == 0.0
+    assert encode_row({"make": "rare-brand"}, maps)["make"] == 1.0
+
+
+def test_prepare_feature_frame_caps_and_drops():
+    import pandas as pd
+    from app.encode import OTHER_CATEGORY
+    from app.fit import MAX_CATEGORY_LEVELS, prepare_feature_frame
+
+    n = 100
+    # ID-like: unique per row → dropped
+    # High-card: 40 levels → capped to top-K + Other
+    # Low-card: untouched
+    df = pd.DataFrame(
+        {
+            "id": [f"row-{i}" for i in range(n)],
+            "city": [f"c{i % 40}" for i in range(n)],
+            "color": ["red" if i % 2 == 0 else "blue" for i in range(n)],
+            "price": list(range(n)),
+        }
+    )
+    out, dropped, capped = prepare_feature_frame(df)
+    assert dropped == ["id"]
+    assert capped == ["city"]
+    assert "color" in out.columns and "price" in out.columns
+    assert out["city"].nunique() <= MAX_CATEGORY_LEVELS
+    assert OTHER_CATEGORY in set(out["city"].astype(str))
+
+
 def test_timbertrek_export_shape():
     from app.timbertrek_export import build_timbertrek_doc
 
@@ -498,3 +535,36 @@ def test_compile_table_tiny_integration():
     assert result["n_trees"] >= 1
     assert bundle.n_trees >= 1
     assert "original_columns" in result
+    assert result.get("dropped_columns") == []
+    assert result.get("capped_columns") == []
+
+
+def test_compile_table_high_cardinality_categorical():
+    """Cars-like string column is capped so ThresholdGuessBinarizer does not hang."""
+    import pandas as pd
+    from app.encode import OTHER_CATEGORY
+    from app.fit import compile_table
+
+    n = 80
+    df = pd.DataFrame(
+        {
+            "model": [f"m{i % 50}" for i in range(n)],
+            "price": [10000 + i * 10 for i in range(n)],
+            "deal": ["Good" if i % 3 == 0 else ("Bad" if i % 3 == 1 else "Average") for i in range(n)],
+        }
+    )
+    result, bundle = compile_table(
+        df,
+        "deal",
+        lambda_reg=0.05,
+        depth_budget=2,
+        rashomon_mult=0.05,
+        lookahead_k=0,
+        fit_rows=80,
+        max_trees=50,
+    )
+    assert result["n_trees"] >= 1
+    assert bundle.n_trees >= 1
+    assert "model" in result["capped_columns"]
+    assert OTHER_CATEGORY in (result["column_codes"].get("model") or {})
+    assert result.get("n_bases_indexed") == bundle.n_trees or result.get("n_bases_indexed") <= 10_000

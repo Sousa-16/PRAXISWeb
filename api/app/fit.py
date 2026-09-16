@@ -23,10 +23,16 @@ for _ancestor in Path(__file__).resolve().parents:
 
 from praxis import PRAXIS, ThresholdGuessBinarizer  # noqa: E402
 
+from app.encode import OTHER_CATEGORY
 from app.fit_params import DEFAULT_FIT_ROWS, DEFAULT_MAX_TREES
 from app.trees import base_name, profile_paths
 
 JACCARD_PAIRS = 200
+# Cap string columns before ThresholdGuessBinarizer so cars-like CSVs finish.
+MAX_CATEGORY_LEVELS = 24
+# When categoricals were capped, PRAXIS may return huge sets; only index this many
+# best-objective trees for live match counts (full n_trees is still reported).
+BASES_INDEX_CAP = 10_000
 
 
 @dataclass
@@ -45,6 +51,8 @@ class FittedBundle:
     bases_bits: np.ndarray | None = None
     feature_bit: dict[str, int] | None = None
     original_columns: list[str] | None = None
+    # If set, only the first N best-objective trees are indexed for match counts.
+    bases_index_cap: int | None = None
 
 
 def ensure_bases_index(bundle: FittedBundle) -> list[frozenset[str]]:
@@ -52,9 +60,13 @@ def ensure_bases_index(bundle: FittedBundle) -> list[frozenset[str]]:
     if bundle.bases_list is not None and bundle.bases_bits is not None and bundle.feature_bit is not None:
         return bundle.bases_list
 
+    limit = bundle.n_trees
+    if bundle.bases_index_cap is not None:
+        limit = min(limit, max(0, int(bundle.bases_index_cap)))
+
     if bundle.bases_list is None:
         out: list[frozenset[str]] = []
-        for i in range(bundle.n_trees):
+        for i in range(limit):
             paths, _ = bundle.model.get_tree_paths(i)
             out.append(frozenset(_bases_from_paths(paths, bundle.bin_names, bundle.original_columns)))
         bundle.bases_list = out
@@ -98,6 +110,47 @@ def count_matching(
     ensure_bases_index(bundle)
     assert bundle.bases_bits is not None and bundle.feature_bit is not None
     return count_bits(bundle.bases_bits, bundle.feature_bit, banned, keep)
+
+
+def prepare_feature_frame(X: pd.DataFrame) -> tuple[pd.DataFrame, list[str], list[str]]:
+    """Drop ID-like string columns; cap high-cardinality categoricals to top-K + Other.
+
+    Binary / numeric columns are left unchanged so existing fast CSVs stay the same.
+    """
+    n = len(X)
+    id_floor = max(50, int(0.9 * n)) if n else 50
+    dropped: list[str] = []
+    capped: list[str] = []
+    keep_cols: list[str] = []
+    series_out: dict[str, pd.Series] = {}
+
+    for col in X.columns:
+        name = str(col)
+        s = X[col]
+        if pd.api.types.is_bool_dtype(s) or pd.api.types.is_numeric_dtype(s):
+            keep_cols.append(name)
+            series_out[name] = s
+            continue
+
+        text = s.astype(str)
+        nunique = int(text.nunique(dropna=False))
+        if nunique > id_floor:
+            dropped.append(name)
+            continue
+        if nunique > MAX_CATEGORY_LEVELS:
+            top = set(text.value_counts().head(MAX_CATEGORY_LEVELS - 1).index)
+            text = text.where(text.isin(top), OTHER_CATEGORY)
+            capped.append(name)
+        keep_cols.append(name)
+        series_out[name] = text
+
+    if not keep_cols:
+        raise ValueError(
+            "Every feature column looked like an ID (too many unique values). "
+            "Remove ID columns or keep a few usable features."
+        )
+    out = pd.DataFrame({c: series_out[c] for c in keep_cols}, index=X.index)
+    return out, dropped, capped
 
 
 def encode_features(X: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
@@ -229,7 +282,8 @@ def compile_table(
     if X_raw.shape[1] < 1:
         raise ValueError("Need at least one feature column besides the label.")
 
-    X_num, maps = encode_features(X_raw)
+    X_prep, dropped_columns, capped_columns = prepare_feature_frame(X_raw)
+    X_num, maps = encode_features(X_prep)
     X_num = X_num.replace([np.inf, -np.inf], np.nan)
     keep_mask = X_num.notna().all(axis=1).to_numpy()
     X_num = X_num.loc[keep_mask]
@@ -256,9 +310,16 @@ def compile_table(
 
     used_tgb = not already_binary(X_fit)
     if used_tgb:
-        tgb = ThresholdGuessBinarizer(
-            max_depth=3, n_estimators=25, learning_rate=0.1, column_elimination=True
-        )
+        # Full TGB (with column elimination) is fine on numeric tables, but hangs on
+        # cars-like capped categoricals. Cheap settings only when we had to cap/drop.
+        if capped_columns or dropped_columns:
+            tgb = ThresholdGuessBinarizer(
+                max_depth=3, n_estimators=10, learning_rate=0.1, column_elimination=False
+            )
+        else:
+            tgb = ThresholdGuessBinarizer(
+                max_depth=3, n_estimators=25, learning_rate=0.1, column_elimination=True
+            )
         Xb_fit = np.asarray(tgb.fit_transform(X_fit, y_fit), dtype=np.uint8)
         Xb_te = np.asarray(tgb.transform(X_te), dtype=np.uint8)
         bin_names = [str(n) for n in tgb.get_feature_names_out()]
@@ -282,14 +343,17 @@ def compile_table(
     if n_trees < 1:
         raise ValueError("PRAXIS found no trees. Try a cleaner label or more rows.")
     min_objective = int(model.get_min_objective())
-    original_columns = [str(c) for c in X_raw.columns]
+    original_columns = [str(c) for c in X_prep.columns]
 
     shell = {
         "file_rows": int(len(df)),
         "fit_rows": int(len(X_fit)),
         "n_original_features": int(X_raw.shape[1]),
+        "n_used_features": int(X_prep.shape[1]),
         "n_binary_features": int(Xb_fit.shape[1]),
         "used_tgb": used_tgb,
+        "dropped_columns": dropped_columns,
+        "capped_columns": capped_columns,
         "n_trees": n_trees,
         "n_profiled": 0,
         "n_matching": None,
@@ -316,6 +380,7 @@ def compile_table(
         },
     }
     shell = json.loads(json.dumps(shell))
+    index_cap = BASES_INDEX_CAP if (capped_columns or dropped_columns) else None
     bundle = FittedBundle(
         model=model,
         bin_names=bin_names,
@@ -326,21 +391,25 @@ def compile_table(
         min_objective=min_objective,
         shell=shell,
         original_columns=original_columns,
+        bases_index_cap=index_cap,
     )
     # Index column bases so Hide-step toggles can show live x / n_trees.
     ensure_bases_index(bundle)
+    indexed = len(bundle.bases_list or [])
     column_use = {c: 0 for c in original_columns}
     for bases in bundle.bases_list or []:
         for name in bases:
             if name in column_use:
                 column_use[name] += 1
+    denom = indexed or n_trees or 1
+    shell["n_bases_indexed"] = indexed
     shell["column_use"] = column_use
     shell["features"] = [
         {
             "id": c,
             "label": c,
-            "frac": (column_use.get(c, 0) / n_trees) if n_trees else 0.0,
-            "core": column_use.get(c, 0) == n_trees,
+            "frac": (column_use.get(c, 0) / denom),
+            "core": column_use.get(c, 0) == indexed and indexed > 0,
         }
         for c in original_columns
     ]

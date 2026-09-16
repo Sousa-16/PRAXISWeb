@@ -23,7 +23,14 @@ def encode_row(row):
         raw = row.get(col, "")
         kind = maps["kind"][col]
         if kind == "categorical":
-            out[col] = float((maps.get("codes") or {}).get(col, {}).get(str(raw), -1))
+            col_codes = (maps.get("codes") or {}).get(col, {})
+            key = str(raw)
+            if key in col_codes:
+                out[col] = float(col_codes[key])
+            elif "__other__" in col_codes:
+                out[col] = float(col_codes["__other__"])
+            else:
+                out[col] = -1.0
         elif kind == "binary":
             out[col] = 1.0 if str(raw).strip().lower() in {"1", "true", "yes", "y"} else 0.0
         else:
