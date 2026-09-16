@@ -283,6 +283,18 @@ def compile_table(
         raise ValueError("Need at least one feature column besides the label.")
 
     X_prep, dropped_columns, capped_columns = prepare_feature_frame(X_raw)
+    # Capped categoricals + default depth/rashomon can enumerate for hours. Tighten
+    # only on that path so binary/numeric CSVs keep the user's settings.
+    if capped_columns or dropped_columns:
+        if depth_budget > 4:
+            depth_budget = 4
+        if rashomon_mult > 0.02:
+            rashomon_mult = 0.02
+        if lambda_reg < 0.02:
+            lambda_reg = 0.02
+        if lookahead_k > max(0, depth_budget - 1):
+            lookahead_k = max(0, depth_budget - 1)
+
     X_num, maps = encode_features(X_prep)
     X_num = X_num.replace([np.inf, -np.inf], np.nan)
     keep_mask = X_num.notna().all(axis=1).to_numpy()
@@ -354,6 +366,7 @@ def compile_table(
         "used_tgb": used_tgb,
         "dropped_columns": dropped_columns,
         "capped_columns": capped_columns,
+        "search_clamped": bool(capped_columns or dropped_columns),
         "n_trees": n_trees,
         "n_profiled": 0,
         "n_matching": None,
