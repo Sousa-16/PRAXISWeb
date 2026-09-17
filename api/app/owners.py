@@ -110,7 +110,12 @@ def purge_expired(session: Session) -> int:
 
 
 def wipe_identity(session: Session, ident: Identity) -> None:
+    from app import cancel
+
     jobs = session.exec(select(Job).where(owner_clause(Job, ident))).all()
+    job_ids = [job.id for job in jobs]
+    # Mark first so a fit that finishes during DELETE discards its result.
+    cancel.cancel_jobs(job_ids)
     for job in jobs:
         _drop_job_caches(job.id)
         session.delete(job)

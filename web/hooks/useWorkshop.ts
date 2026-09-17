@@ -411,10 +411,24 @@ export function useWorkshop() {
 
   async function wipe() {
     if (!window.confirm("Delete every upload and search for this browser?")) return;
-    await praxisWeb.deleteMine();
+    // Clear the workshop immediately so Delete feels instant even if a fit is running.
     resetWorkshop();
-    refreshMe();
-    notifications.show({ title: "Deleted", message: "Your rows on this server are gone.", color: "copper" });
+    notifications.show({
+      title: "Deleted",
+      message: "Your rows on this server are gone. Any search in progress was cancelled.",
+      color: "copper",
+    });
+    try {
+      await praxisWeb.deleteMine();
+      refreshMe();
+    } catch (err) {
+      notifications.show({
+        title: "Could not finish deleting on the server",
+        message: String(err),
+        color: "red",
+      });
+      refreshMe();
+    }
   }
 
   const maxStep = !dataset ? 0 : !result ? 0 : !selected ? 2 : 3;

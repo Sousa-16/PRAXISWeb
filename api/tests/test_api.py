@@ -51,6 +51,54 @@ def test_delete_now(client):
     assert res.status_code == 404
 
 
+def test_wipe_cancels_job_and_discards_result(client):
+    """Delete my data marks jobs cancelled so a finishing worker does not recreate them."""
+    from app import cancel
+    from app.auth import Identity
+    from app.db import engine
+    from app.jobs_runner import run_job
+    from app.models import Job
+    from app.owners import stamp_owner
+    from sqlmodel import Session
+
+    client.get("/v1/me")
+    ds = client.post("/v1/datasets/sample").json()
+    sid = client.cookies.get("praxis_web_sid")
+    assert sid
+    with Session(engine) as session:
+        session.add(
+            Job(
+                id="wipejob1",
+                dataset_id=ds["id"],
+                label=ds["guessed_label"],
+                status="queued",
+                search_document=ds["guessed_label"],
+                params_json="{}",
+                **stamp_owner(Identity(session_id=sid, new_cookie=False)),
+            )
+        )
+        session.commit()
+
+    assert client.delete("/v1/me/data").status_code == 200
+    assert cancel.is_cancelled("wipejob1")
+
+    run_job("wipejob1")
+    with Session(engine) as session:
+        assert session.get(Job, "wipejob1") is None
+    assert not cancel.is_cancelled("wipejob1")
+
+
+def test_cancel_module_flags():
+    from app import cancel
+
+    cancel.clear_cancelled("t1")
+    assert not cancel.is_cancelled("t1")
+    cancel.cancel_jobs(["t1", "t2"])
+    assert cancel.is_cancelled("t1")
+    cancel.clear_cancelled("t1")
+    assert not cancel.is_cancelled("t1")
+
+
 STUMP = {
     "id": 0,
     "bases": ["income"],

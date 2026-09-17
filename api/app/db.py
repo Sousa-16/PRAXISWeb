@@ -22,6 +22,12 @@ elif settings.is_postgres():
 
 engine = create_engine(url, connect_args=connect_args, **engine_kwargs)
 
+if url.startswith("sqlite") and ":memory:" not in url and not url.endswith("sqlite://"):
+    # Allow Delete my data while another thread is between commits.
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA journal_mode=WAL")
+        conn.commit()
+
 
 def init_db() -> None:
     from app.migrate import upgrade_head
