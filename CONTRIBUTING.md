@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for interest in PRAXIS Web. This repo is the workshop UI + API around the PRAXIS tree search.
+Thank you for your interest in PRAXIS Web. This repo is the workshop UI + API around the PRAXIS tree search.
 
 ## Development
 
