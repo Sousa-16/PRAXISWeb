@@ -323,8 +323,10 @@ def _reject_oversize(raw: bytes) -> None:
 
 def _store_dataset(session: Session, ident: Identity, filename: str, raw: bytes, request: Request) -> dict:
     purge_expired(session)
-    _limit(ident, request, "upload", limit=4, window_s=60.0)
     _reject_oversize(raw)
+    if not raw.strip():
+        raise HTTPException(400, "The uploaded CSV is empty.")
+    _limit(ident, request, "upload", limit=4, window_s=60.0)
     from app.tables import preview_frame, read_csv
 
     df = read_csv(raw)
