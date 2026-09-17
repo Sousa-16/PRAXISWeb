@@ -2,6 +2,9 @@
 api/.deps/
 api/.venv/
 api/.env
+api/.env.local
+api/.env.production
+api/.env.development
 api/praxis_web.db
 api/swapout.db
 api/test_*.db
@@ -16,14 +19,32 @@ api/data/bases_cache/.write_probe
 # Web
 web/node_modules/
 web/.next/
+web/.env
+web/.env.local
+web/.env.production
+web/.env.development
 web/.env*.local
 web/tsconfig.tsbuildinfo
 
-# OS / editor
+# Root / local env (keep *.env.example tracked)
+.env
+.env.local
+.env.production
+.env.development
+
+# Local scratch (never commit)
+testcsvshere/
+
+# Editor / IDE
+.cursor/
+.vscode/
 .DS_Store
 Thumbs.db
 
 # Secrets / SSH (never commit)
+.local-secrets/*
+!.local-secrets/README.md
 *.key
 ssh-key*
 *.pem
+*proxy-secret*

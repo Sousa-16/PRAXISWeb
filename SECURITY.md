@@ -57,8 +57,8 @@ deploy settings.
 
 ## Operator checklist
 
-1. Never commit `api/.env`, `*.key`, or DuckDNS tokens.
-2. SSH: key-only login (no password). Optional: `fail2ban` on port 22.
+1. Never commit `api/.env`, `.local-secrets/` (except its README), `*.key`, proxy secrets, or DuckDNS tokens.
+2. SSH: key-only login (no password). Keep the private key in `.local-secrets/` (mode `600`). Optional: `fail2ban` on port 22.
 3. OCI security list: **22, 80, 443** only. Do **not** open **8765**.
 4. `FRONTEND_ORIGIN` must exactly match the Vercel URL; `COOKIE_SECURE=1`.
 5. Keep `api/.env` (including `DATABASE_URL` and `PRAXIS_PROXY_SECRET`) on the VM only. SQLite is a file on that host. Match the proxy secret on Vercel.

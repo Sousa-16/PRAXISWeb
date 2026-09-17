@@ -1,5 +1,10 @@
 # PRAXIS Web
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/Sousa-16/PRAXISWeb/actions/workflows/test.yml/badge.svg)](https://github.com/Sousa-16/PRAXISWeb/actions/workflows/test.yml)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](web/package.json)
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](api/requirements.txt)
+
 Find short, readable if-then rules from a labeled CSV, compare near-best trees, and score new rows with the rule you pick.
 
 This repo is the **workshop** (UI + API). The search algorithm is PRAXIS; install the research package separately as [`tree-praxis`](https://pypi.org/project/tree-praxis/) if you want it in Python.
@@ -21,6 +26,27 @@ A four-step guest workshop:
 
 PRAXIS searches a **Rashomon set**: many short decision trees that predict almost equally well. Details: [PRAXIS ICML 2026 paper](https://arxiv.org/abs/2606.00202).
 
+## Stack
+
+| Layer | Tech |
+|-------|------|
+| Frontend | Next.js (App Router), TypeScript, hosted on Vercel |
+| Backend | FastAPI, SQLAlchemy, SQLite guest store, Docker on OCI |
+| HTTPS API | Caddy + DuckDNS (stable hostname for the Vercel proxy) |
+| Algorithm | [`tree-praxis`](https://pypi.org/project/tree-praxis/) (separate package) |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  visitor[Visitor] --> vercel[Vercel_Next.js]
+  vercel -->|"/v1/* proxy"| caddy[Caddy_HTTPS]
+  caddy --> api[FastAPI_OCI]
+  api --> sqlite[(SQLite_guests)]
+```
+
+Visitors only use the Vercel URL. The Next.js app proxies API calls and forwards the visitor IP when `PRAXIS_PROXY_SECRET` matches on both sides. See [DEPLOYMENT.md](DEPLOYMENT.md) and [SECURITY.md](SECURITY.md).
+
 ## Try it
 
 On the live site, click **Use Sample Email Spam Detection**, or upload a labeled CSV.
@@ -29,10 +55,9 @@ Do not upload secrets or personal data you would not put on a shared demo machin
 
 ## Local run
 
-**Docker (API + web):**
+**Docker (API + web)** from the repo root:
 
 ```bash
-cd WebApp
 docker compose up --build
 ```
 
@@ -56,6 +81,15 @@ Copy [api/.env.example](api/.env.example) and [web/.env.example](web/.env.exampl
 - **web/** — Next.js frontend (Vercel). No database client.
 - **api/** — FastAPI backend (OCI / Docker). Guest data is **SQLite** (`DATABASE_URL`).
 - **ops/** — DuckDNS + Caddy runbook for the stable API URL
+
+## Tests
+
+```bash
+cd api && python -m pytest tests/ -q
+cd web && npx tsc --noEmit && npm test && npm run build
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for PR expectations.
 
 ## Deploy
 

@@ -73,7 +73,6 @@ SQLAlchemy can open Postgres if you set a `postgresql://` URL. Nothing in the li
 **Docker (API + web):**
 
 ```bash
-cd WebApp
 docker compose up --build
 ```
 

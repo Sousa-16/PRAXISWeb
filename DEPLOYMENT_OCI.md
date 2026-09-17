@@ -64,7 +64,8 @@ sudo iptables -I INPUT -p tcp --dport 22 -j ACCEPT
 SSH in:
 
 ```bash
-ssh -i /path/to/key ubuntu@YOUR_PUBLIC_IP
+# Private key lives in .local-secrets/ (gitignored — never commit it)
+ssh -i .local-secrets/<your-oci-key>.key ubuntu@YOUR_PUBLIC_IP
 ```
 
 Then:
