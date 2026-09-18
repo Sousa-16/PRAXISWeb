@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Alert, Button, Text } from "@mantine/core";
 import { AppShell } from "@/components/AppShell";
 import { StepRail } from "@/components/StepRail";
@@ -11,8 +12,25 @@ import { StepTry } from "@/components/workshop/StepTry";
 import { GUEST_FOOTER } from "@/lib/constants";
 import { useWorkshop } from "@/hooks/useWorkshop";
 
+function scrollPageToTop() {
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
+
 export default function HomePage() {
   const w = useWorkshop();
+
+  // Land at the top on first open; don't let the browser restore a mid-page scroll.
+  useEffect(() => {
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+    scrollPageToTop();
+  }, []);
+
+  // Each workshop step (and leaving the hero after load) should start at the top.
+  useEffect(() => {
+    scrollPageToTop();
+  }, [w.step, w.dataset]);
 
   return (
     <AppShell

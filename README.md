@@ -15,6 +15,10 @@ This repo is the **workshop** (UI + API). The search algorithm is PRAXIS; instal
 
 Open that URL. You do not need the API hostname.
 
+<video src="docs/images/workshop-tour.mp4" controls width="960" title="PRAXIS Web workshop tour through Score &amp; export">
+  <a href="docs/images/workshop-tour.mp4">Watch the workshop tour (MP4)</a>
+</video>
+
 ## What it is
 
 A four-step guest workshop:
