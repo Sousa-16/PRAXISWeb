@@ -48,3 +48,5 @@ Thumbs.db
 ssh-key*
 *.pem
 *proxy-secret*
+
+.vercel

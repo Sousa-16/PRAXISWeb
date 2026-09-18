@@ -1,6 +1,18 @@
 "use client";
 
-import { Alert, Button, Group, Progress, SegmentedControl, SimpleGrid, Stack, Text } from "@mantine/core";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Button,
+  Group,
+  Pagination,
+  Progress,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  Text,
+} from "@mantine/core";
+import { PAGE_SIZE } from "@/lib/constants";
 import type { ConstraintMode, JobResult } from "@/lib/types";
 
 type Props = {
@@ -46,6 +58,25 @@ export function StepHide({
     surviving != null && total > 0 ? Math.min(100, (surviving / total) * 100) : profiled && result.n_profiled
       ? (leftoverCount / result.n_profiled) * 100
       : 0;
+
+  const [page, setPage] = useState(1);
+  const pages = Math.max(1, Math.ceil(columns.length / PAGE_SIZE));
+  const slice = useMemo(
+    () => columns.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [columns, page]
+  );
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, pages));
+  }, [pages]);
+
+  const showingLabel =
+    columns.length === 0
+      ? "0 columns"
+      : `showing ${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, columns.length)} of ${columns.length}`;
+
+  const pager =
+    pages > 1 ? <Pagination total={pages} value={page} onChange={setPage} size="sm" /> : null;
 
   return (
     <Stack gap="md" className="step-flow">
@@ -109,8 +140,16 @@ export function StepHide({
             : `Cost: ${((bestAll - bestLeft) * 100).toFixed(1)} points of accuracy.`}
         </Alert>
       )}
+
+      <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+        <Text c="dimmed" size="sm" maw="100%">
+          {showingLabel}
+        </Text>
+        {pager}
+      </Group>
+
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
-        {columns.map((col) => (
+        {slice.map((col) => (
           <div key={col} className="col-chip">
             <div className="col-chip-row">
               <div>
@@ -144,6 +183,16 @@ export function StepHide({
           </div>
         ))}
       </SimpleGrid>
+
+      {pages > 1 && (
+        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+          <Text c="dimmed" size="sm" maw="100%">
+            {showingLabel}
+          </Text>
+          {pager}
+        </Group>
+      )}
+
       {surviving === 0 ? (
         <Alert color="red">No tree fits these choices. Reset or loosen them before profiling.</Alert>
       ) : (

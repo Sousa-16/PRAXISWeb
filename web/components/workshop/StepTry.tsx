@@ -190,6 +190,15 @@ export function StepTry({
           </div>
         ))}
       </SimpleGrid>
+      {pages > 1 && (
+        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+          <Text c="dimmed" size="sm" maw="100%">
+            showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, leftover.length)} of{" "}
+            {leftover.length}
+          </Text>
+          <Pagination total={pages} value={page} onChange={setPage} size="sm" />
+        </Group>
+      )}
       {compared.length >= 2 && (
         <div className="panel rise">
           <Group justify="space-between" mb="sm" wrap="wrap">
