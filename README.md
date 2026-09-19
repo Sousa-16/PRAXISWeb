@@ -11,7 +11,7 @@
 
 ![PRAXIS Web landing: sample spam and upload CSV CTAs](docs/images/landing.jpg)
 
-https://github.com/Sousa-16/PRAXISWeb/releases/download/demo-assets/workshop-tour.mp4
+[![Watch the PRAXIS Web workshop tour](https://raw.githubusercontent.com/Sousa-16/PRAXISWeb/main/docs/images/landing.jpg)](https://github.com/Sousa-16/PRAXISWeb/releases/download/demo-assets/workshop-tour.mp4)
 
 ![Load a Table: spam sample loaded with label column and Find good rules](docs/images/load-table.jpg)
 
