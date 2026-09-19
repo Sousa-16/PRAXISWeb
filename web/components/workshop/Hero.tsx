@@ -22,12 +22,10 @@ export function Hero({ busy, onSample, onUpload }: Props) {
           PRAXIS <span>Web</span>
         </h1>
         <p className="hero-line rise rise-1">
-          Fast, memory-efficient, and transparent AI Decision Automation tailored to your exact
-          constraints.
+          Transparent AI decision automation, tailored to your exact constraints, right in your browser.
         </p>
         <p className="hero-sub rise rise-2">
-          Powered by PRAXIS, which searches a set of near-best decision trees so you can compare
-          options under your column constraints.
+          Powered by PRAXIS: an innovative Rashomon set algorithm achieving improvements in both runtime and memory efficiency compared to state-of-the-art methods, without sacrificing interpretability.
         </p>
         <div className="hero-ctas rise rise-3">
           <Button size="lg" fullWidth onClick={onSample} loading={busy}>
@@ -124,8 +122,7 @@ export function Hero({ busy, onSample, onUpload }: Props) {
         <p className="primer-lead">
           PRAXIS Web is a workshop on top of that algorithm. Upload a labeled CSV; PRAXIS searches for
           the near-best rules; you hide columns you will not have later, try a case, compare survivors,
-          score new rows, and download a frozen rule (JSON or a standalone Python scorer). After you
-          start, the screens stick to everyday words: table, columns, rules, accuracy.
+          score new rows, and download a frozen rule (JSON or a standalone Python scorer).
         </p>
 
         <ol className="primer-steps">
@@ -148,7 +145,7 @@ export function Hero({ busy, onSample, onUpload }: Props) {
         </ol>
 
         <p className="primer-foot">
-          Upload a CSV or try the sample email spam file to see PRAXIS on your (or sample) data.
+          PRAXIS is most customizable and efficient in a coding environment. This web app serves as a simplified showcase for the algorithm.
         </p>
       </section>
     </>
