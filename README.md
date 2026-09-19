@@ -42,7 +42,7 @@ Most "best" models hide near-equally good alternatives. A **Rashomon set** of sh
 
 ## Product value
 
-| For visitors | For operators / portfolio |
+| For visitors | For operators |
 | :--- | :--- |
 | Zero setup: sample spam path in one click | End-to-end system design on a $0 stack |
 | Readable rules, not a black-box score | Guest isolation, rate limits, cancelable wipe |
