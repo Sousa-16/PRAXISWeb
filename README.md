@@ -34,10 +34,10 @@ Most “best” models hide alternatives that are almost as accurate. PRAXIS sur
 
 A four-step guest workshop:
 
-1. **Load a Table** — sample email spam or your CSV; optional search settings
-2. **Set Tree Rules** — mark columns as won’t-have or must-use
-3. **Browse Trees** — pick a surviving rule
-4. **Score & export** — score a row or CSV, preview impact, download JSON or a standalone Python scorer
+1. **Load a Table**: sample email spam or your CSV; optional search settings
+2. **Set Tree Rules**: mark columns as won’t-have or must-use
+3. **Browse Trees**: pick a surviving rule
+4. **Score & export**: score a row or CSV, preview impact, download JSON or a standalone Python scorer
 
 Sample CSV provenance: [api/data/README.md](api/data/README.md).
 
