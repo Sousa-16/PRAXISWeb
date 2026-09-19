@@ -25,6 +25,8 @@ web/.env.production
 web/.env.development
 web/.env*.local
 web/tsconfig.tsbuildinfo
+web/AGENTS.md
+web/CLAUDE.md
 
 # Root / local env (keep *.env.example tracked)
 .env
@@ -34,6 +36,7 @@ web/tsconfig.tsbuildinfo
 
 # Local scratch (never commit)
 testcsvshere/
+docs/images/_smoke/
 
 # Editor / IDE
 .cursor/

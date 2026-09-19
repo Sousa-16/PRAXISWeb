@@ -199,7 +199,7 @@ export function StepScore({
           <p className="section-label">One case</p>
           <h2 className="panel-head">Score a row</h2>
           <Text size="sm" c="dimmed" mb="sm">
-            Fill in the columns this rule uses, then score. Same encodings as the search—no new fit.
+            Fill in the columns this rule uses, then score. Same encodings as the search-no new fit.
           </Text>
           <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
             {scoreCols.map((col) => {
@@ -260,7 +260,7 @@ export function StepScore({
           <h2 className="panel-head">Take this rule with you</h2>
           <Text size="sm" c="dimmed" mb="sm">
             Download the frozen rule as JSON, or a small Python script that scores CSVs with no
-            dependencies—it keeps working even if this server goes away. You can also archive every
+            dependencies-it keeps working even if this server goes away. You can also archive every
             surviving rule under your column choices.
           </Text>
           <Group wrap="wrap" className="cta-stack">

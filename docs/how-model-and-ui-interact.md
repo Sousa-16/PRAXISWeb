@@ -56,4 +56,14 @@ Key orchestration lives in `web/hooks/useWorkshop.ts` and `api/app/main.py`. Fit
 - **Guest isolation** is row-level (`session_id`) plus CORS locked to the frontend origin.
 - **Long fits** release the SQLite session so **Delete my data** can cancel and wipe without waiting for the search to finish.
 
+### Trade-offs (same choices as the README)
+
+| Choice | Why | Trade-off |
+| :--- | :--- | :--- |
+| SQLite guest store | Zero ops; ownership by `session_id` | Single-VM writes; not multi-region |
+| Background fit threads | Wipe/cancel without a queue product | Shared VM CPU; global job semaphore |
+| Guest cookie (no auth) | Instant demo; browser-tied data | Shared laptop / cleared cookies = new session |
+| Vercel `/v1` proxy | API stays off the public marketing origin | Proxy secret + client-IP headers must match |
+| 24h TTL | Automatic demo hygiene | Work must finish (or restart) within the window |
+
 For limits and threat model, see [SECURITY.md](../SECURITY.md). For deploy topology, see [DEPLOYMENT.md](../DEPLOYMENT.md).

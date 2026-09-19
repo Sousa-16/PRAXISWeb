@@ -13,7 +13,7 @@ backend-only.
 1. Open [https://www.duckdns.org](https://www.duckdns.org) and sign in (GitHub is fine).
 2. Create a subdomain, e.g. `praxis-web-api` → `praxis-web-api.duckdns.org`.
 3. Set the IPv4 address to the VM public IP (`YOUR_VM_PUBLIC_IP` from the
-   OCI instance page — do not commit the live address).
+   OCI instance page - do not commit the live address).
 4. Copy your **token** from the DuckDNS dashboard.
 
 ### 2. Open ports 80 and 443 in Oracle Cloud
@@ -91,7 +91,7 @@ health check succeeds.
 
 | Event | What you do |
 |-------|-------------|
-| VM reboot | Nothing — Caddy, Docker, and DuckDNS timer start on boot |
-| Let's Encrypt renewal | Nothing — Caddy renews the cert |
+| VM reboot | Nothing - Caddy, Docker, and DuckDNS timer start on boot |
+| Let's Encrypt renewal | Nothing - Caddy renews the cert |
 | Public IP change (rare) | DuckDNS timer updates the A record within 5 minutes |
 | API code change | Same as before: rsync/pull + `docker compose -f docker-compose.oci.yml up -d --build api` |

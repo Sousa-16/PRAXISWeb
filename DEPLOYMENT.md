@@ -50,14 +50,14 @@ SQLAlchemy can open Postgres if you set a `postgresql://` URL. Nothing in the li
 
 ## Quick start: OCI + Vercel (recommended)
 
-1. **OCI** — Ampere VM, `docker compose -f docker-compose.oci.yml up -d --build` ([full guide](DEPLOYMENT_OCI.md))
-2. **HTTPS** — DuckDNS + Caddy on the VM ([full guide](ops/CADDY_DUCKDNS.md))
-3. **Vercel** — root directory `web`. Set:
+1. **OCI** - Ampere VM, `docker compose -f docker-compose.oci.yml up -d --build` ([full guide](DEPLOYMENT_OCI.md))
+2. **HTTPS** - DuckDNS + Caddy on the VM ([full guide](ops/CADDY_DUCKDNS.md))
+3. **Vercel** - root directory `web`. Set:
    - `API_PROXY_TARGET` = your Caddy HTTPS URL (no trailing slash)
    - `PRAXIS_PROXY_SECRET` = same value as on the VM (forwards visitor IP)
-4. **SQLite** — Compose mounts guest DB at `/app/praxis_data/praxis_web.db` (named volume). See [ops/BACKUP.md](ops/BACKUP.md).
-5. **CORS/cookies** — `FRONTEND_ORIGIN` on the API must exactly match the Vercel URL; `COOKIE_SECURE=1`
-6. **Proxy secret** — set the same `PRAXIS_PROXY_SECRET` on the VM `api/.env` and on Vercel so per-IP rate limits see real visitors
+4. **SQLite** - Compose mounts guest DB at `/app/praxis_data/praxis_web.db` (named volume). See [ops/BACKUP.md](ops/BACKUP.md).
+5. **CORS/cookies** - `FRONTEND_ORIGIN` on the API must exactly match the Vercel URL; `COOKIE_SECURE=1`
+6. **Proxy secret** - set the same `PRAXIS_PROXY_SECRET` on the VM `api/.env` and on Vercel so per-IP rate limits see real visitors
 
 **Ship loop after setup:**
 
@@ -170,8 +170,8 @@ See `api/.env.example` for optional S3-compatible object storage on Render.
 
 ## Other platforms
 
-- **Fly.io** — [`api/fly.toml`](api/fly.toml) (Docker, persistent volume for NPZ cache)
-- **Railway** — same `api/Dockerfile`; set `PORT` from the platform
+- **Fly.io** - [`api/fly.toml`](api/fly.toml) (Docker, persistent volume for NPZ cache)
+- **Railway** - same `api/Dockerfile`; set `PORT` from the platform
 
 ---
 

@@ -38,7 +38,7 @@ export function TimberTrekPanel({
         {constraintNote}. You currently have {leftoverCount.toLocaleString()} profiled survivors;
         PRAXIS found {result.n_trees.toLocaleString()} near-optimal trees in total. When row
         counts are missing (for example after a cold restart without a reloaded fit), the JSON may
-        use approximate leaf sizes so TimberTrek still bins — re-run Find good rules for exact
+        use approximate leaf sizes so TimberTrek still bins - re-run Find good rules for exact
         counts. Upload the JSON on their{" "}
         <Text
           span

@@ -71,7 +71,7 @@ export const FIT_PARAM_FIELDS: {
     key: "max_trees",
     label: "Max trees to unpack for Browse",
     description:
-      "After you set column rules, we fully unpack at most this many matching trees for the Browse step. Does not change how many PRAXIS found—only how many you see in detail.",
+      "After you set column rules, we fully unpack at most this many matching trees for the Browse step. Does not change how many PRAXIS found-only how many you see in detail.",
   },
 ];
 

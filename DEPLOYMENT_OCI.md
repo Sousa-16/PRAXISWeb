@@ -1,4 +1,4 @@
-# Deploy on Oracle Cloud (OCI) — $0 Always Free
+# Deploy on Oracle Cloud (OCI) - $0 Always Free
 
 Stack: **Vercel** (frontend) + **OCI Ampere VM** (API) + **SQLite on the VM**. No hosted database service.
 
@@ -23,7 +23,7 @@ flowchart LR
 
 ---
 
-## Part 1 — OCI VM
+## Part 1 - OCI VM
 
 ### 1. Create the instance
 
@@ -46,7 +46,7 @@ flowchart LR
 | `0.0.0.0/0` | `22` | SSH |
 | `0.0.0.0/0` | `80`, `443` | Caddy HTTPS (DuckDNS) |
 
-Port **8765** stays on `127.0.0.1` only — Caddy proxies public 443 to it.
+Port **8765** stays on `127.0.0.1` only - Caddy proxies public 443 to it.
 
 **On the VM** (Ubuntu often has `iptables` too):
 
@@ -59,12 +59,12 @@ sudo iptables -I INPUT -p tcp --dport 22 -j ACCEPT
 
 ---
 
-## Part 2 — Install Docker on the VM
+## Part 2 - Install Docker on the VM
 
 SSH in:
 
 ```bash
-# Private key lives in .local-secrets/ (gitignored — never commit it)
+# Private key lives in .local-secrets/ (gitignored - never commit it)
 ssh -i .local-secrets/<your-oci-key>.key ubuntu@YOUR_PUBLIC_IP
 ```
 
@@ -79,7 +79,7 @@ Log out and SSH back in so `docker` works without `sudo`.
 
 ---
 
-## Part 3 — Deploy the API
+## Part 3 - Deploy the API
 
 ```bash
 git clone https://github.com/Sousa-16/PRAXISWeb.git
@@ -106,7 +106,7 @@ BASES_CACHE_DIR=data/bases_cache
 
 `docker-compose.oci.yml` loads this file with `env_file` and **forces** `DATABASE_URL` onto `/app/praxis_data` so guest rows survive container rebuilds. Generate a proxy secret once and set it on both the VM and Vercel.
 
-Start API (bound to localhost only — tunnel or Caddy will expose HTTPS):
+Start API (bound to localhost only - tunnel or Caddy will expose HTTPS):
 
 ```bash
 docker compose -f docker-compose.oci.yml up -d --build
@@ -128,11 +128,11 @@ docker compose -f docker-compose.oci.yml logs -f api
 
 ---
 
-## Part 4 — HTTPS for the API
+## Part 4 - HTTPS for the API
 
 Vercel needs an **HTTPS** URL for `API_PROXY_TARGET`.
 
-### Recommended — Caddy + DuckDNS (stable, no paid domain)
+### Recommended - Caddy + DuckDNS (stable, no paid domain)
 
 See **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)**. Live hostname:
 `https://praxis-web-api.duckdns.org` → Caddy on the VM → `localhost:8765`.
@@ -140,18 +140,18 @@ See **[ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md)**. Live hostname:
 Set Vercel `API_PROXY_TARGET` once. Open TCP **80** and **443** in the OCI
 security list and on the VM iptables.
 
-### Alternative — Cloudflare quick tunnel (testing only)
+### Alternative - Cloudflare quick tunnel (testing only)
 
 ```bash
 cloudflared tunnel --url http://127.0.0.1:8765
 ```
 
 Copy the `https://….trycloudflare.com` URL. **Quick tunnels change hostname on
-every restart** — not suitable for a public site. Use DuckDNS + Caddy instead.
+every restart** - not suitable for a public site. Use DuckDNS + Caddy instead.
 
 ---
 
-## Part 5 — Connect Vercel
+## Part 5 - Connect Vercel
 
 1. Vercel → project → **Settings** → **Environment Variables**
 2. Set:
@@ -205,8 +205,8 @@ fi
 
 ## What not to run on OCI
 
-- **Do not** run the `web` service — Vercel hosts Next.js.
-- **Redis/worker** — removed. Fits run in-process threads so the fitted model can be pickled next to the NPZ cache.
+- **Do not** run the `web` service - Vercel hosts Next.js.
+- **Redis/worker** - removed. Fits run in-process threads so the fitted model can be pickled next to the NPZ cache.
 
 ## After API restart
 

@@ -1,5 +1,5 @@
 # Production compose for OCI (API only).
-# Frontend runs on Vercel — do not start the web service here.
+# Frontend runs on Vercel - do not start the web service here.
 #
 # Usage:
 #   cp api/.env.example api/.env   # edit FRONTEND_ORIGIN, PRAXIS_PROXY_SECRET
