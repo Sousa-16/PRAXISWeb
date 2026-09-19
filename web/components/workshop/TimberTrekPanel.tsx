@@ -30,16 +30,7 @@ export function TimberTrekPanel({
       <p className="section-label">Explore</p>
       <h2 className="panel-head">Open in TimberTrek</h2>
       <Text size="sm" c="dimmed" mb="sm">
-        Download up to{" "}
-        <Text span fw={600}>
-          2,000
-        </Text>{" "}
-        trees that still fit your Set Tree Rules choices
-        {constraintNote}. You currently have {leftoverCount.toLocaleString()} profiled survivors;
-        PRAXIS found {result.n_trees.toLocaleString()} near-optimal trees in total. When row
-        counts are missing (for example after a cold restart without a reloaded fit), the JSON may
-        use approximate leaf sizes so TimberTrek still bins - re-run Find good rules for exact
-        counts. Upload the JSON on their{" "}
+        For an alternative data visualization experience to view your up to 2,000 best-filtered trees in the Rashomon set, researchers at Georgia Tech, Duke, Fujitsu, and UBC have developed an interactive tool that summarizes the entire Rashomon set of sparse decision trees and empowers users to curate trees that meet their needs. To export your trees, download the JSON below and upload it to their{" "}
         <Text
           span
           component="a"
