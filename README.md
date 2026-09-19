@@ -108,9 +108,9 @@ Copy [api/.env.example](api/.env.example) and [web/.env.example](web/.env.exampl
 
 ## Repo map
 
-- **web/** — Next.js frontend (Vercel). No database client.
-- **api/** — FastAPI backend (OCI / Docker). Guest data is **SQLite** (`DATABASE_URL`).
-- **ops/** — DuckDNS + Caddy runbook for the stable API URL
+- **web/**: Next.js frontend (Vercel). No database client.
+- **api/**: FastAPI backend (OCI / Docker). Guest data is **SQLite** (`DATABASE_URL`).
+- **ops/**: DuckDNS + Caddy runbook for the stable API URL
 
 ## Tests
 
