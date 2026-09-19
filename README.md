@@ -68,7 +68,7 @@ I designed and built the guest workshop end to end:
 - Guest cookie isolation, abuse limits, Delete my data
 - OCI Docker + Vercel proxy + Caddy/DuckDNS HTTPS path
 
-PRAXIS / `tree-praxis` is the research algorithm (separate package and paper). My contribution is the **product and infrastructure around it**.
+PRAXIS / `tree-praxis` is the research algorithm (separate package and paper). My contribution is the **algorithm testing, product and infrastructure around it**. I would like to thank the Duke University research team and the Rutgers University Center for Discrete Mathematics and Theoretical Computer Science (DIMACS) for the early-access opportunity to assist in the advancements of this algorithm, as well as my fellow DIMACS team members for the teamwork and collaboration during the testing process.
 
 ## Key features
 
