@@ -11,9 +11,9 @@
 
 ![PRAXIS Web landing: sample spam and upload CSV CTAs](docs/images/landing.jpg)
 
-https://github.com/user-attachments/assets/3635b922-84cc-45ec-8149-d40fa45084b8
-
 ![Load a Table: spam sample loaded with label column and Find good rules](docs/images/load-table.jpg)
+
+https://github.com/user-attachments/assets/3635b922-84cc-45ec-8149-d40fa45084b8
 
 ## My role
 
