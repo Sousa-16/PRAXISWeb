@@ -1,54 +1,83 @@
 # PRAXIS Web
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/Sousa-16/PRAXISWeb/actions/workflows/test.yml/badge.svg)](https://github.com/Sousa-16/PRAXISWeb/actions/workflows/test.yml)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black)](web/package.json)
-[![Python](https://img.shields.io/badge/Python-3.12-blue)](api/requirements.txt)
+![Status: Prototype](https://img.shields.io/badge/status-prototype-orange.svg)
+![Live demo](https://img.shields.io/badge/demo-live-success.svg)
+![CI](https://github.com/Sousa-16/PRAXISWeb/actions/workflows/test.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![Python](https://img.shields.io/badge/Python-3.12-blue)
 
-Find short, readable if-then rules from a labeled CSV, compare near-best trees, and score new rows with the rule you pick.
+**Public guest workshop for PRAXIS**: find short, readable if-then rules from a labeled CSV, compare near-best trees, score new rows, and export a scorer.
 
-**[Live demo → https://praxis-web-nu.vercel.app](https://praxis-web-nu.vercel.app)**
+**[Live demo](https://praxis-web-nu.vercel.app)** · [How model and UI interact](docs/how-model-and-ui-interact.md)
 
-<p>
-  <img src="docs/images/landing.jpg" alt="PRAXIS Web landing — sample spam and upload CSV CTAs" width="960" />
-</p>
-<p>
-  <img src="docs/images/load-table.jpg" alt="Load a Table — spam sample loaded with label column and Find good rules" width="960" />
-</p>
+![PRAXIS Web landing: sample spam and upload CSV CTAs](docs/images/landing.jpg)
 
-<video src="docs/images/workshop-tour.mp4" controls width="960" title="PRAXIS Web workshop tour through Score &amp; export">
-  <a href="docs/images/workshop-tour.mp4">Watch the workshop tour (MP4)</a>
-</video>
+![Load a Table: spam sample loaded with label column and Find good rules](docs/images/load-table.jpg)
 
-## My contribution
+[Watch the workshop tour (MP4)](docs/images/workshop-tour.mp4)
 
-I built this **guest workshop**: Next.js UI, FastAPI jobs API, feature constraints, score/export, guest isolation, and the OCI + Vercel deploy path.
+## Project goal
 
-The search algorithm itself is **PRAXIS** ([`tree-praxis`](https://pypi.org/project/tree-praxis/)), a separate research package described in the [ICML 2026 paper](https://arxiv.org/abs/2606.00202).
+Make the PRAXIS Rashomon-set search usable in a browser: upload (or sample) a table, constrain features, pick a short tree you can read, then score and export, without accounts and without exposing the research package as a SaaS backend.
+
+This repo is the **workshop** (UI + API + deploy). The algorithm is the separate package [`tree-praxis`](https://pypi.org/project/tree-praxis/) ([ICML 2026 paper](https://arxiv.org/abs/2606.00202)).
+
+## Project status
+
+**Prototype / portfolio demo**: intentionally scoped for a shared guest machine, not multi-tenant production.
+
+| | |
+| :--- | :--- |
+| Audience | Recruiters, reviewers, curious practitioners |
+| Hosting | Live on Vercel + OCI Always Free |
+| Data model | Ephemeral guest SQLite (24h TTL + Delete my data) |
+| Not in scope | Auth, billing, multi-region HA, production SLAs |
+
+OpenAPI is off in production. Treat uploads like data on a borrowed laptop ([SECURITY.md](SECURITY.md)).
 
 ## Why this matters
 
-Most “best” models hide alternatives that are almost as accurate. PRAXIS surfaces a **Rashomon set** of short trees so you can pick a rule you can read and defend. This app adds a browser workshop around that idea: constrain features, compare survivors, score new rows, and export — with guest isolation, rate limits, and a one-click data wipe.
+Most "best" models hide near-equally good alternatives. A **Rashomon set** of short trees lets you choose a rule you can explain, which is useful when accuracy alone is not enough (compliance, safety, domain vetoes on features). This app turns that research idea into a guided workshop with constraints, comparison, scoring, and export.
 
-## What it is
+## Product value
 
-A four-step guest workshop:
+| For visitors | For operators / portfolio |
+| :--- | :--- |
+| Zero setup: sample spam path in one click | End-to-end system design on a $0 stack |
+| Readable rules, not a black-box score | Guest isolation, rate limits, cancelable wipe |
+| Export JSON or a standalone Python scorer | Reproducible deploy docs (OCI + Vercel + Caddy) |
 
-1. **Load a Table**: sample email spam or your CSV; optional search settings
-2. **Set Tree Rules**: mark columns as won’t-have or must-use
-3. **Browse Trees**: pick a surviving rule
-4. **Score & export**: score a row or CSV, preview impact, download JSON or a standalone Python scorer
+## Deployment status
 
-Sample CSV provenance: [api/data/README.md](api/data/README.md).
+| Surface | Status |
+| :--- | :--- |
+| Frontend | **Live**: [praxis-web-nu.vercel.app](https://praxis-web-nu.vercel.app) |
+| API | **Live**: FastAPI on OCI behind Caddy/DuckDNS (proxied; not for direct visitor use) |
+| CI | GitHub Actions on `main` ([workflow](https://github.com/Sousa-16/PRAXISWeb/actions/workflows/test.yml)) |
+| Cost | Designed for Always Free OCI + Vercel hobby |
 
-## Stack
+Runbooks: [DEPLOYMENT.md](DEPLOYMENT.md) · [DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md) · [ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md).
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js 16 (App Router), TypeScript, hosted on Vercel |
-| Backend | FastAPI, SQLAlchemy, SQLite guest store, Docker on OCI |
-| HTTPS API | Caddy + DuckDNS (stable hostname for the Vercel proxy) |
-| Algorithm | [`tree-praxis`](https://pypi.org/project/tree-praxis/) (separate package) |
+## My role
+
+I designed and built the guest workshop end to end:
+
+- Next.js 16 UI (four-step flow, polling, export)
+- FastAPI jobs API (fit workers, constraints, score/freeze)
+- Guest cookie isolation, abuse limits, Delete my data
+- OCI Docker + Vercel proxy + Caddy/DuckDNS HTTPS path
+
+PRAXIS / `tree-praxis` is the research algorithm (separate package and paper). My contribution is the **product and infrastructure around it**.
+
+## Key features
+
+- **Four-step workshop**: Load → constrain → browse → score/export
+- **Sample spam dataset**: UCI Spambase-based demo CSV ([provenance](api/data/README.md))
+- **Feature constraints**: won't-have / must-use columns with live survivor counts
+- **Rashomon browsing**: pick among short near-best trees
+- **Score & export**: single row, batch CSV, impact preview, JSON + offline Python scorer
+- **Guest safety**: session ownership, rate limits, 24h TTL, one-click wipe (cancels in-flight fits)
 
 ## Architecture
 
@@ -58,34 +87,38 @@ flowchart LR
   vercel -->|"/v1/* proxy"| caddy[Caddy_HTTPS]
   caddy --> api[FastAPI_OCI]
   api --> sqlite[(SQLite_guests)]
+  api --> praxis[tree_praxis_fit]
 ```
 
-Visitors only use the Vercel URL. The Next.js app proxies API calls and forwards the visitor IP when `PRAXIS_PROXY_SECRET` matches on both sides. See [DEPLOYMENT.md](DEPLOYMENT.md) and [SECURITY.md](SECURITY.md).
+Visitors only use the Vercel URL. Next.js proxies `/v1/*`, attaches the guest cookie, and can forward client IP when `PRAXIS_PROXY_SECRET` matches. Fits run in background threads on the VM; the UI polls job status.
 
-## API (compact)
+Deeper write-up: [How the model and UI interact](docs/how-model-and-ui-interact.md).
 
-OpenAPI/Swagger is off in production. Main routes (all under the proxied `/v1` path from the web app):
+### Stack
+
+| Layer | Tech |
+| :--- | :--- |
+| Frontend | Next.js 16 (App Router), TypeScript on Vercel |
+| Backend | FastAPI, SQLAlchemy, SQLite in Docker on OCI |
+| HTTPS API | Caddy + DuckDNS |
+| Algorithm | [`tree-praxis`](https://pypi.org/project/tree-praxis/) |
+
+### API (compact)
 
 | Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/v1/datasets` | Upload a labeled CSV |
-| `POST` | `/v1/datasets/sample` | Load the built-in spam sample |
-| `POST` | `/v1/jobs` | Start a PRAXIS search |
+| :--- | :--- | :--- |
+| `POST` | `/v1/datasets` | Upload labeled CSV |
+| `POST` | `/v1/datasets/sample` | Load spam sample |
+| `POST` | `/v1/jobs` | Start PRAXIS search |
 | `GET` | `/v1/jobs/{id}` | Job status / result |
-| `POST` | `/v1/jobs/{id}/profile` | Feature profile for constraints |
-| `POST` | `/v1/jobs/{id}/score` | Score one row with a frozen tree |
-| `POST` | `/v1/jobs/{id}/freeze` | Persist the chosen tree for export |
-| `DELETE` | `/v1/me/data` | Wipe this browser’s guest data |
+| `POST` | `/v1/jobs/{id}/profile` | Profile trees under constraints |
+| `POST` | `/v1/jobs/{id}/score` | Score one row |
+| `POST` | `/v1/jobs/{id}/freeze` | Freeze rule for export |
+| `DELETE` | `/v1/me/data` | Wipe this browser's guest data |
 
-## Try it
+## Setup instructions
 
-On the live site, click **Use Sample Email Spam Detection**, or upload a labeled CSV.
-
-Do not upload secrets or personal data you would not put on a shared demo machine. Guest uploads are tied to this browser, expire after 24 hours, and can be wiped with **Delete my data**. See [Privacy](https://praxis-web-nu.vercel.app/privacy) and [SECURITY.md](SECURITY.md).
-
-## Local run
-
-**Docker (API + web)** from the repo root:
+### Docker (recommended)
 
 ```bash
 docker compose up --build
@@ -94,37 +127,40 @@ docker compose up --build
 - Web: http://localhost:3000
 - API: http://localhost:8765
 
-**Without Docker:**
+### Without Docker
 
 ```bash
-# terminal 1
-cd api && uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+# terminal 1: API
+cd api && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
 
-# terminal 2
+# terminal 2: web
 cd web && npm ci && npm run dev
 ```
 
-Copy [api/.env.example](api/.env.example) and [web/.env.example](web/.env.example) if you need local overrides.
+Copy [api/.env.example](api/.env.example) and [web/.env.example](web/.env.example) for local overrides.
 
-## Repo map
-
-- **web/**: Next.js frontend (Vercel). No database client.
-- **api/**: FastAPI backend (OCI / Docker). Guest data is **SQLite** (`DATABASE_URL`).
-- **ops/**: DuckDNS + Caddy runbook for the stable API URL
-
-## Tests
+### Tests
 
 ```bash
 cd api && python -m pytest tests/ -q
 cd web && npx tsc --noEmit && npm test && npm run build
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for PR expectations.
+### Repo map
 
-## Deploy
+| Path | Role |
+| :--- | :--- |
+| `web/` | Next.js frontend (no DB client) |
+| `api/` | FastAPI + SQLite guest store |
+| `ops/` | Caddy / DuckDNS / backup runbooks |
+| `docs/` | Screenshots, tour video, write-ups |
 
-Overview: [DEPLOYMENT.md](DEPLOYMENT.md). OCI + Vercel ($0): [DEPLOYMENT_OCI.md](DEPLOYMENT_OCI.md). Stable API hostname: [ops/CADDY_DUCKDNS.md](ops/CADDY_DUCKDNS.md). Backups: [ops/BACKUP.md](ops/BACKUP.md).
+## Technical write-up
+
+**[How the model and UI interact](docs/how-model-and-ui-interact.md)**: cookie → job poll → fit → constrain → freeze/score/export
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Matheus Sousa
+[MIT](LICENSE). Copyright (c) 2026 Matheus Sousa
