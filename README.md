@@ -11,9 +11,7 @@
 
 ![PRAXIS Web landing: sample spam and upload CSV CTAs](docs/images/landing.jpg)
 
-<video src="docs/images/workshop-tour.mp4" controls width="960" title="PRAXIS Web workshop tour through Score and export">
-  <a href="docs/images/workshop-tour.mp4">Watch the workshop tour (MP4)</a>
-</video>
+https://github.com/Sousa-16/PRAXISWeb/releases/download/demo-assets/workshop-tour.mp4
 
 ![Load a Table: spam sample loaded with label column and Find good rules](docs/images/load-table.jpg)
 
