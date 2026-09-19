@@ -8,6 +8,6 @@ pandas==3.0.5
 numpy==2.5.3
 scikit-learn==1.9.1
 tree-praxis==0.0.30
-sentry-sdk==2.69.1
+sentry-sdk==2.69.2
 boto3==1.43.92
 httpx==0.28.1
