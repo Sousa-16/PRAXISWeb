@@ -42,8 +42,7 @@ testcsvshere/
 Thumbs.db
 
 # Secrets / SSH (never commit)
-.local-secrets/*
-!.local-secrets/README.md
+.local-secrets/
 *.key
 ssh-key*
 *.pem
