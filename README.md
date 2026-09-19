@@ -9,7 +9,7 @@
 
 **Public guest workshop for PRAXIS**: find short, readable if-then rules from a labeled CSV, compare near-best trees, score new rows, and export a scorer.
 
-**[Live demo](https://praxis-web-nu.vercel.app)** · [How model and UI interact](docs/how-model-and-ui-interact.md)
+**[Live demo](https://praxis-web-nu.vercel.app)**
 
 ![PRAXIS Web landing: sample spam and upload CSV CTAs](docs/images/landing.jpg)
 
