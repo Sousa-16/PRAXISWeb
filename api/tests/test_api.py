@@ -507,6 +507,31 @@ def test_empty_csv_returns_400(client):
     assert res.status_code == 400
 
 
+def test_gzip_csv_upload_is_inflated(client):
+    import gzip
+
+    raw = b"income,region\n42000,south\n50000,west\n"
+    files = {"file": ("rows.csv", gzip.compress(raw), "application/gzip")}
+    res = client.post("/v1/datasets", files=files)
+    assert res.status_code == 201
+    body = res.json()
+    assert body["n_rows"] == 2
+    assert body["filename"] == "rows.csv"
+
+
+def test_gzip_over_limit_returns_413(client, monkeypatch):
+    import gzip
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "max_upload_bytes", 80)
+    raw = b"income,region\n" + b"42000,south\n" * 40
+    files = {"file": ("rows.csv", gzip.compress(raw), "application/gzip")}
+    res = client.post("/v1/datasets", files=files)
+    assert res.status_code == 413
+    assert "too large" in res.json()["error"].lower()
+
+
 def test_proxy_secret_forwards_client_ip(client, monkeypatch):
     from app.config import settings
     from app.rate_limit import _hits

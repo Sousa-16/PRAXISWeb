@@ -24,13 +24,22 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return parse(res) as Promise<T>;
 }
 
+// Vercel rejects serverless request bodies over 4.5 MB before the route runs.
+const PROXY_BODY_BUDGET = 4 * 1024 * 1024;
+
+async function fileForUpload(file: File): Promise<Blob> {
+  if (file.size <= PROXY_BODY_BUDGET || typeof CompressionStream === "undefined") return file;
+  const gzipped = await new Response(file.stream().pipeThrough(new CompressionStream("gzip"))).blob();
+  return gzipped.size < file.size ? gzipped : file;
+}
+
 export const praxisWeb = {
   me: () => api<Me>("/v1/me"),
   deleteMine: () => api<{ ok: boolean }>("/v1/me/data", { method: "DELETE" }),
   sample: () => api<DatasetPreview>("/v1/datasets/sample", { method: "POST" }),
   upload: async (file: File) => {
     const body = new FormData();
-    body.append("file", file);
+    body.append("file", await fileForUpload(file), file.name);
     return api<DatasetPreview>("/v1/datasets", { method: "POST", body });
   },
   createJob: (dataset_id: string, label: string, params?: Record<string, number>) =>
@@ -70,7 +79,7 @@ export const praxisWeb = {
     body: { tree_id: number; banned: string[]; keep: string[] },
   ): Promise<string> => {
     const form = new FormData();
-    form.append("file", file);
+    form.append("file", await fileForUpload(file), file.name);
     form.append("tree_id", String(body.tree_id));
     form.append("banned", JSON.stringify(body.banned));
     form.append("keep", JSON.stringify(body.keep));

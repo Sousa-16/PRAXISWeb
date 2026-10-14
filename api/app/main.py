@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gzip
+import io
 import json
 import secrets
 import threading
@@ -315,10 +317,38 @@ def _row_vals(rec: dict[str, Any], cols: list[str]) -> dict[str, str]:
     return {c: "" if rec.get(c) is None else str(rec.get(c)) for c in cols}
 
 
+def _too_large() -> HTTPException:
+    mb = max(1, settings.max_upload_bytes // (1024 * 1024))
+    return HTTPException(413, f"File is too large ({mb} MB max).")
+
+
 def _reject_oversize(raw: bytes) -> None:
     if len(raw) > settings.max_upload_bytes:
-        mb = max(1, settings.max_upload_bytes // (1024 * 1024))
-        raise HTTPException(413, f"File is too large ({mb} MB max).")
+        raise _too_large()
+
+
+def _inflate_upload(raw: bytes) -> bytes:
+    """Undo browser gzip used to stay under Vercel's 4.5 MB request-body limit."""
+    if len(raw) < 2 or not raw.startswith(b"\x1f\x8b"):
+        return raw
+    _reject_oversize(raw)
+    chunks: list[bytes] = []
+    total = 0
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
+            while True:
+                block = gz.read(1024 * 1024)
+                if not block:
+                    break
+                total += len(block)
+                if total > settings.max_upload_bytes:
+                    raise _too_large()
+                chunks.append(block)
+    except HTTPException:
+        raise
+    except (OSError, EOFError, gzip.BadGzipFile) as exc:
+        raise HTTPException(400, "Could not read that compressed CSV.") from exc
+    return b"".join(chunks)
 
 
 def _store_dataset(session: Session, ident: Identity, filename: str, raw: bytes, request: Request) -> dict:
@@ -347,7 +377,7 @@ async def create_dataset(
     session: Session = Depends(get_session),
     ident: Identity = Depends(identity_dep),
 ):
-    raw = await file.read()
+    raw = _inflate_upload(await file.read())
     return _store_dataset(session, ident, file.filename or "upload.csv", raw, request)
 
 
@@ -647,7 +677,7 @@ async def score_job_batch(
     _limit(ident, request, "score_batch", limit=4, window_s=120.0)
     _, result = _succeeded_job_result(session, ident, job_id)
     policy = freeze_policy(result, tree_id, _parse_str_list(banned, "banned"), _parse_str_list(keep, "keep"))
-    raw = await file.read()
+    raw = _inflate_upload(await file.read())
     _reject_oversize(raw)
     from app.tables import read_csv
 

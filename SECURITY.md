@@ -24,8 +24,8 @@ These defaults live in `api/app/config.py` and can be overridden in `api/.env`.
 
 | Limit | Default | Purpose |
 |-------|---------|---------|
-| `MAX_UPLOAD_BYTES` | 8 MB | Caps CSV size |
-| `MAX_ROWS` | 20,000 | Caps table size for upload and scoring |
+| `MAX_UPLOAD_BYTES` | 16 MB | Caps CSV size |
+| `MAX_ROWS` | 60,000 | Caps table size for upload and scoring |
 | `MAX_ACTIVE_JOBS` | 1 | One search at a time per browser |
 | `MAX_GLOBAL_JOBS` | 2 | At most two PRAXIS fits on the whole VM |
 | `fit_rows` / `max_trees` | max 2,000 | Caps search cost in the UI and API |
